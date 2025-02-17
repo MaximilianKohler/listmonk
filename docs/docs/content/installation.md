@@ -2,6 +2,8 @@
 
 listmonk is a simple binary application that requires a Postgres database instance to run. The binary can be downloaded and run manually, or it can be run as a container with Docker compose.
 
+See the "[Tutorials](#tutorials)" section at the bottom for detailed guides. 
+
 ## Binary
 1. Download the [latest release](https://github.com/knadh/listmonk/releases) and extract the listmonk binary. `amd64` is the main one. It works for Intel and x86 CPUs.
 1. `./listmonk --new-config` to generate config.toml. Edit the file.
@@ -90,46 +92,3 @@ The `master` branch with bleeding edge changes is periodically built and publish
 ## Helm chart for Kubernetes
 
 ![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 3.0.0](https://img.shields.io/badge/AppVersion-3.0.0-informational?style=flat-square)
-
-A helm chart for easily installing listmonk on a kubernetes cluster is made available by community [here](https://github.com/th0th/helm-charts/tree/main/charts/listmonk).
-
-In order to use the helm chart, you can configure `values.yaml` according to your needs, and then run the following command:
-
-```shell
-$ helm upgrade \
-    --create-namespace \
-    --install listmonk listmonk \
-    --namespace listmonk \
-    --repo https://th0th.github.io/helm-charts \
-    --values values.yaml \
-    --version 0.1.0
-```
-
-## 3rd party hosting
-
-<a href="https://dash.elest.io/deploy?soft=Listmonk&id=237"><img src="https://raw.githubusercontent.com/elestio-examples/reactjs/refs/heads/master/src/deploy-on-elestio.png" alt="Deploy to Elestio" height="35" style="max-width: 150px;" /></a>
-<br />
-<a href="https://www.pikapods.com/pods?run=listmonk"><img src="https://www.pikapods.com/static/run-button.svg" alt="Deploy on PikaPod" style="max-width: 150px;" /></a>
-<br />
-<a href="https://railway.app/new/template/listmonk"><img src="https://railway.app/button.svg" alt="One-click deploy on Railway" style="max-width: 150px;" /></a>
-<br />
-<a href="https://repocloud.io/details/?app_id=217"><img src="https://d16t0pc4846x52.cloudfront.net/deploy.png" alt="Deploy at RepoCloud" style="max-width: 150px;"/></a>
-<br />
-<a href="https://cloud.sealos.io/?openapp=system-template%3FtemplateName%3Dlistmonk"><img src="https://cdn.jsdelivr.net/gh/labring-actions/templates@main/Deploy-on-Sealos.svg" alt="Deploy on Sealos" style="max-width: 150px;"/></a>
-<br />
-<a href="https://zeabur.com/templates/5EDMN6"><img src="https://zeabur.com/button.svg" alt="Deploy on Zeabur" style="max-width: 150px;"/></a>
-
-## Tutorials
-
-* [Informal step-by-step on how to get started with listmonk using *Railway*](https://github.com/knadh/listmonk/issues/120#issuecomment-1421838533)
-* [Step-by-step tutorial for installation and all basic functions. *Amazon EC2, SES, docker & binary*](https://gist.github.com/MaximilianKohler/e5158fcfe6de80a9069926a67afcae11)
-* [Step-by-step guide on how to install and set up listmonk on *AWS Lightsail with docker* (rameerez)](https://github.com/knadh/listmonk/issues/1208)
-* [Quick setup on any cloud server using *docker and caddy*](https://github.com/samyogdhital/listmonk-caddy-reverse-proxy)
-* [*Binary* install on Ubuntu 22.04 as a service](https://mumaritc.hashnode.dev/how-to-install-listmonk-using-binary-on-ubuntu-2204)
-* [*Binary* install on Ubuntu 18.04 as a service (Apache & Plesk)](https://devgypsy.com/post/2020-08-18-installing-listmonk-newsletter-manager/)
-* [*Binary and docker* on linux (techviewleo)](https://techviewleo.com/manage-mailing-list-and-newsletter-using-listmonk/)
-* [*Binary* install on your PC](https://www.youtube.com/watch?v=fAOBqgR9Yfo). Discussions of limitations: [[1](https://github.com/knadh/listmonk/issues/862#issuecomment-1307328228)][[2](https://github.com/knadh/listmonk/issues/248#issuecomment-1320806990)].
-* [*Docker on Rocky Linux 8* (nginx, Let's Encrypt SSL)](https://wiki.crowncloud.net/?How_to_Install_Listmonk_with_Docker_on_Rocky_Linux_8)
-* [*Docker* with nginx reverse proxy, certbot SSL, and Gmail SMTP](https://www.maketecheasier.com/create-own-newsletter-with-listmonk/)
-* [Install Listmonk on Self-hosting with *Pre-Configured AMI Package at AWS* by Single Click](https://meetrix.io/articles/how-to-install-llama-2-on-aws-with-pre-configured-ami-package/)
-* [Tutorial for deploying on *Fly.io*](https://github.com/paulrudy/listmonk-on-fly) -- Currently [not working](https://github.com/knadh/listmonk/issues/984#issuecomment-1694545255)
