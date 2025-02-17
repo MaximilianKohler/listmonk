@@ -63,6 +63,13 @@
                     controls-position="compact" placeholder="2" min="1" max="1000" />
                 </b-field>
               </div>
+               <div class="column is-4">
+                <b-field :label="$t('settings.messengers.retryDelay')" label-position="on-border"
+                  :message="$t('settings.messengers.retryDelayHelp')">
+                  <b-input v-model="item.retry_delay" name="retry_delay" placeholder="15s" :pattern="regDuration"
+                    :maxlength="10" />
+                </b-field>
+              </div>
               <div class="column is-4">
                 <b-field :label="$t('settings.messengers.timeout')" label-position="on-border"
                   :message="$t('settings.messengers.timeoutHelp')">
