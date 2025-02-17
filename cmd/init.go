@@ -2,9 +2,13 @@ package main
 
 import (
 	"bytes"
+	"crypto/md5"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -14,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/gdgvda/cron"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
 	"github.com/knadh/goyesql/v2"
@@ -24,9 +29,11 @@ import (
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/knadh/koanf/v2"
+	"github.com/knadh/listmonk/internal/auth"
 	"github.com/knadh/listmonk/internal/bounce"
 	"github.com/knadh/listmonk/internal/bounce/mailbox"
 	"github.com/knadh/listmonk/internal/captcha"
+	"github.com/knadh/listmonk/internal/core"
 	"github.com/knadh/listmonk/internal/i18n"
 	"github.com/knadh/listmonk/internal/manager"
 	"github.com/knadh/listmonk/internal/media"
@@ -40,13 +47,11 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
 	flag "github.com/spf13/pflag"
+	"gopkg.in/volatiletech/null.v6"
 )
 
 const (
 	queryFilePath = "queries.sql"
-
-	// Root URI of the admin frontend.
-	adminRoot = "/admin"
 )
 
 // constants contains static, constant config values required by the app.
@@ -55,6 +60,7 @@ type constants struct {
 	RootURL                       string   `koanf:"root_url"`
 	LogoURL                       string   `koanf:"logo_url"`
 	FaviconURL                    string   `koanf:"favicon_url"`
+	LoginURL                      string   `koanf:"login_url"`
 	FromEmail                     string   `koanf:"from_email"`
 	NotifyEmails                  []string `koanf:"notify_emails"`
 	EnablePublicSubPage           bool     `koanf:"enable_public_subscription_page"`
@@ -70,16 +76,22 @@ type constants struct {
 		AllowExport        bool            `koanf:"allow_export"`
 		AllowWipe          bool            `koanf:"allow_wipe"`
 		RecordOptinIP      bool            `koanf:"record_optin_ip"`
+		UnsubHeader        bool            `koanf:"unsubscribe_header"`
 		Exportable         map[string]bool `koanf:"-"`
 		DomainBlocklist    []string        `koanf:"-"`
 	} `koanf:"privacy"`
 	Security struct {
+		OIDC struct {
+			Enabled      bool   `koanf:"enabled"`
+			Provider     string `koanf:"provider_url"`
+			ClientID     string `koanf:"client_id"`
+			ClientSecret string `koanf:"client_secret"`
+		} `koanf:"oidc"`
+
 		EnableCaptcha bool   `koanf:"enable_captcha"`
 		CaptchaKey    string `koanf:"captcha_key"`
 		CaptchaSecret string `koanf:"captcha_secret"`
 	} `koanf:"security"`
-	AdminUsername []byte `koanf:"admin_username"`
-	AdminPassword []byte `koanf:"admin_password"`
 
 	Appearance struct {
 		AdminCSS  []byte `koanf:"admin.custom_css"`
@@ -88,21 +100,28 @@ type constants struct {
 		PublicJS  []byte `koanf:"public.custom_js"`
 	}
 
-	UnsubURL     string
-	LinkTrackURL string
-	ViewTrackURL string
-	OptinURL     string
-	MessageURL   string
-	ArchiveURL   string
+	HasLegacyUser bool
+	UnsubURL      string
+	LinkTrackURL  string
+	ViewTrackURL  string
+	OptinURL      string
+	MessageURL    string
+	ArchiveURL    string
+	AssetVersion  string
 
 	MediaUpload struct {
 		Provider   string
 		Extensions []string
 	}
 
-	BounceWebhooksEnabled bool
-	BounceSESEnabled      bool
-	BounceSendgridEnabled bool
+	BounceWebhooksEnabled     bool
+	BounceSESEnabled          bool
+	BounceSendgridEnabled     bool
+	BouncePostmarkEnabled     bool
+	BounceForwardemailEnabled bool
+
+	PermissionsRaw json.RawMessage
+	Permissions    map[string]struct{}
 }
 
 type notifTpls struct {
@@ -164,6 +183,7 @@ func initFS(appDir, frontendDir, staticDir, i18nDir string) stuffbin.FileSystem 
 			"./config.toml.sample:config.toml.sample",
 			"./queries.sql:queries.sql",
 			"./schema.sql:schema.sql",
+			"./permissions.json:permissions.json",
 		}
 
 		frontendFiles = []string{
@@ -184,15 +204,15 @@ func initFS(appDir, frontendDir, staticDir, i18nDir string) stuffbin.FileSystem 
 		}
 	)
 
-	// Get the executable's path.
-	path, err := os.Executable()
+	// Get the executable's execPath.
+	execPath, err := os.Executable()
 	if err != nil {
 		lo.Fatalf("error getting executable path: %v", err)
 	}
 
 	// Load embedded files in the executable.
 	hasEmbed := true
-	fs, err := stuffbin.UnStuff(path)
+	fs, err := stuffbin.UnStuff(execPath)
 	if err != nil {
 		hasEmbed = false
 
@@ -228,7 +248,18 @@ func initFS(appDir, frontendDir, staticDir, i18nDir string) stuffbin.FileSystem 
 		if staticDir == "" {
 			// Default dir in cwd.
 			staticDir = "static"
+		} else {
+			// There is a custom static directory. Any paths that aren't in it, exclude.
+			sf := []string{}
+			for _, def := range staticFiles {
+				s := strings.Split(def, ":")[0]
+				if _, err := os.Stat(path.Join(staticDir, s)); err == nil {
+					sf = append(sf, def)
+				}
+			}
+			staticFiles = sf
 		}
+
 		lo.Printf("loading static files from: %v", staticDir)
 		files = append(files, joinFSPaths(staticDir, staticFiles)...)
 	}
@@ -367,11 +398,13 @@ func initConstants() *constants {
 	if err := ko.Unmarshal("security", &c.Security); err != nil {
 		lo.Fatalf("error loading app.security config: %v", err)
 	}
+
 	if err := ko.UnmarshalWithConf("appearance", &c.Appearance, koanf.UnmarshalConf{FlatPaths: true}); err != nil {
 		lo.Fatalf("error loading app.appearance config: %v", err)
 	}
 
 	c.RootURL = strings.TrimRight(c.RootURL, "/")
+	c.LoginURL = path.Join(uriAdmin, "/login")
 	c.Lang = ko.String("app.lang")
 	c.Privacy.Exportable = maps.StringSliceToLookupMap(ko.Strings("privacy.exportable"))
 	c.MediaUpload.Provider = ko.String("upload.provider")
@@ -400,6 +433,35 @@ func initConstants() *constants {
 	c.BounceWebhooksEnabled = ko.Bool("bounce.webhooks_enabled")
 	c.BounceSESEnabled = ko.Bool("bounce.ses_enabled")
 	c.BounceSendgridEnabled = ko.Bool("bounce.sendgrid_enabled")
+	c.BouncePostmarkEnabled = ko.Bool("bounce.postmark.enabled")
+	c.BounceForwardemailEnabled = ko.Bool("bounce.forwardemail.enabled")
+	c.HasLegacyUser = ko.Exists("app.admin_username") || ko.Exists("app.admin_password")
+
+	b := md5.Sum([]byte(time.Now().String()))
+	c.AssetVersion = fmt.Sprintf("%x", b)[0:10]
+
+	pm, err := fs.Read("/permissions.json")
+	if err != nil {
+		lo.Fatalf("error reading permissions file: %v", err)
+	}
+	c.PermissionsRaw = pm
+
+	// Make a lookup map of permissions.
+	permGroups := []struct {
+		Group       string   `json:"group"`
+		Permissions []string `json:"permissions"`
+	}{}
+	if err := json.Unmarshal(pm, &permGroups); err != nil {
+		lo.Fatalf("error loading permissions file: %v", err)
+	}
+
+	c.Permissions = map[string]struct{}{}
+	for _, group := range permGroups {
+		for _, g := range group.Permissions {
+			c.Permissions[g] = struct{}{}
+		}
+	}
+
 	return &c
 }
 
@@ -422,14 +484,7 @@ func initI18n(lang string, fs stuffbin.FileSystem) *i18n.I18n {
 // initCampaignManager initializes the campaign manager.
 func initCampaignManager(q *models.Queries, cs *constants, app *App) *manager.Manager {
 	campNotifCB := func(subject string, data interface{}) error {
-		return app.sendNotification(cs.NotifyEmails, subject, notifTplCampaign, data)
-	}
-
-	if ko.Int("app.concurrency") < 1 {
-		lo.Fatal("app.concurrency should be at least 1")
-	}
-	if ko.Int("app.message_rate") < 1 {
-		lo.Fatal("app.message_rate should be at least 1")
+		return app.sendNotification(cs.NotifyEmails, subject, notifTplCampaign, data, nil)
 	}
 
 	if ko.Bool("passive") {
@@ -449,6 +504,7 @@ func initCampaignManager(q *models.Queries, cs *constants, app *App) *manager.Ma
 		ViewTrackURL:          cs.ViewTrackURL,
 		MessageURL:            cs.MessageURL,
 		ArchiveURL:            cs.ArchiveURL,
+		RootURL:               cs.RootURL,
 		UnsubHeader:           ko.Bool("privacy.unsubscribe_header"),
 		SlidingWindow:         ko.Bool("app.message_sliding_window"),
 		SlidingWindowDuration: ko.Duration("app.message_sliding_window_duration"),
@@ -475,7 +531,7 @@ func initTxTemplates(m *manager.Manager, app *App) {
 }
 
 // initImporter initializes the bulk subscriber importer.
-func initImporter(q *models.Queries, db *sqlx.DB, app *App) *subimporter.Importer {
+func initImporter(q *models.Queries, db *sqlx.DB, core *core.Core, app *App) *subimporter.Importer {
 	return subimporter.New(
 		subimporter.Options{
 			DomainBlocklist:    app.constants.Privacy.DomainBlocklist,
@@ -483,26 +539,24 @@ func initImporter(q *models.Queries, db *sqlx.DB, app *App) *subimporter.Importe
 			BlocklistStmt:      q.UpsertBlocklistSubscriber.Stmt,
 			UpdateListDateStmt: q.UpdateListsDate.Stmt,
 			NotifCB: func(subject string, data interface{}) error {
-				app.sendNotification(app.constants.NotifyEmails, subject, notifTplImport, data)
+				// Refresh cached subscriber counts and stats.
+				core.RefreshMatViews(true)
+
+				app.sendNotification(app.constants.NotifyEmails, subject, notifTplImport, data, nil)
 				return nil
 			},
 		}, db.DB, app.i18n)
 }
 
-// initSMTPMessenger initializes the SMTP messenger.
-func initSMTPMessenger(m *manager.Manager) manager.Messenger {
+// initSMTPMessenger initializes the combined and individual SMTP messengers.
+func initSMTPMessengers() []manager.Messenger {
 	var (
-		mapKeys = ko.MapKeys("smtp")
-		servers = make([]email.Server, 0, len(mapKeys))
+		servers = []email.Server{}
+		out     = []manager.Messenger{}
 	)
 
-	items := ko.Slices("smtp")
-	if len(items) == 0 {
-		lo.Fatalf("no SMTP servers found in config")
-	}
-
 	// Load the config for multiple SMTP servers.
-	for _, item := range items {
+	for _, item := range ko.Slices("smtp") {
 		if !item.Bool("enabled") {
 			continue
 		}
@@ -514,25 +568,39 @@ func initSMTPMessenger(m *manager.Manager) manager.Messenger {
 		}
 
 		servers = append(servers, s)
-		lo.Printf("loaded email (SMTP) messenger: %s@%s",
-			item.String("username"), item.String("host"))
-	}
-	if len(servers) == 0 {
-		lo.Fatalf("no SMTP servers enabled in settings")
+		lo.Printf("initialized email (SMTP) messenger: %s@%s", item.String("username"), item.String("host"))
+
+		// If the server has a name, initialize it as a standalone e-mail messenger
+		// allowing campaigns to select individual SMTPs. In the UI and config, it'll appear as `email / $name`.
+		if s.Name != "" {
+			msgr, err := email.New(s.Name, s)
+			if err != nil {
+				lo.Fatalf("error initializing e-mail messenger: %v", err)
+			}
+			out = append(out, msgr)
+		}
 	}
 
-	// Initialize the e-mail messenger with multiple SMTP servers.
-	msgr, err := email.New(servers...)
+	// Initialize the 'email' messenger with all SMTP servers.
+	msgr, err := email.New(email.MessengerName, servers...)
 	if err != nil {
-		lo.Fatalf("error loading e-mail messenger: %v", err)
+		lo.Fatalf("error initializing e-mail messenger: %v", err)
 	}
 
-	return msgr
+	// If it's just one server, return the default "email" messenger.
+	if len(servers) == 1 {
+		return []manager.Messenger{msgr}
+	}
+
+	// If there are multiple servers, prepend the group "email" to be the first one.
+	out = append([]manager.Messenger{msgr}, out...)
+
+	return out
 }
 
 // initPostbackMessengers initializes and returns all the enabled
 // HTTP postback messenger backends.
-func initPostbackMessengers(m *manager.Manager) []manager.Messenger {
+func initPostbackMessengers() []manager.Messenger {
 	items := ko.Slices("messengers")
 	if len(items) == 0 {
 		return nil
@@ -572,6 +640,7 @@ func initMediaStore() media.Store {
 	case "s3":
 		var o s3.Opt
 		ko.Unmarshal("upload.s3", &o)
+
 		up, err := s3.NewS3Store(o)
 		if err != nil {
 			lo.Fatalf("error initializing s3 upload provider %s", err)
@@ -602,33 +671,7 @@ func initMediaStore() media.Store {
 // initNotifTemplates compiles and returns e-mail notification templates that are
 // used for sending ad-hoc notifications to admins and subscribers.
 func initNotifTemplates(path string, fs stuffbin.FileSystem, i *i18n.I18n, cs *constants) *notifTpls {
-	// Register utility functions that the e-mail templates can use.
-	funcs := template.FuncMap{
-		"RootURL": func() string {
-			return cs.RootURL
-		},
-		"LogoURL": func() string {
-			return cs.LogoURL
-		},
-		"Date": func(layout string) string {
-			if layout == "" {
-				layout = time.ANSIC
-			}
-			return time.Now().Format(layout)
-		},
-		"L": func() *i18n.I18n {
-			return i
-		},
-		"Safe": func(safeHTML string) template.HTML {
-			return template.HTML(safeHTML)
-		},
-	}
-
-	for k, v := range sprig.GenericFuncMap() {
-		funcs[k] = v
-	}
-
-	tpls, err := stuffbin.ParseTemplatesGlob(funcs, fs, "/static/email-templates/*.html")
+	tpls, err := stuffbin.ParseTemplatesGlob(initTplFuncs(i, cs), fs, "/static/email-templates/*.html")
 	if err != nil {
 		lo.Fatalf("error parsing e-mail notif templates: %v", err)
 	}
@@ -668,7 +711,22 @@ func initBounceManager(app *App) *bounce.Manager {
 		SESEnabled:      ko.Bool("bounce.ses_enabled"),
 		SendgridEnabled: ko.Bool("bounce.sendgrid_enabled"),
 		SendgridKey:     ko.String("bounce.sendgrid_key"),
-
+		Postmark: struct {
+			Enabled  bool
+			Username string
+			Password string
+		}{
+			ko.Bool("bounce.postmark.enabled"),
+			ko.String("bounce.postmark.username"),
+			ko.String("bounce.postmark.password"),
+		},
+		ForwardEmail: struct {
+			Enabled bool
+			Key     string
+		}{
+			ko.Bool("bounce.forwardemail.enabled"),
+			ko.String("bounce.forwardemail.key"),
+		},
 		RecordBounceCB: app.core.RecordBounce,
 	}
 
@@ -749,11 +807,7 @@ func initHTTPServer(app *App) *echo.Echo {
 		}
 	})
 
-	// Parse and load user facing templates.
-	tpl, err := stuffbin.ParseTemplatesGlob(template.FuncMap{
-		"L": func() *i18n.I18n {
-			return app.i18n
-		}}, app.fs, "/public/templates/*.html")
+	tpl, err := stuffbin.ParseTemplatesGlob(initTplFuncs(app.i18n, app.constants), app.fs, "/public/templates/*.html")
 	if err != nil {
 		lo.Fatalf("error parsing public templates: %v", err)
 	}
@@ -763,8 +817,10 @@ func initHTTPServer(app *App) *echo.Echo {
 		RootURL:             app.constants.RootURL,
 		LogoURL:             app.constants.LogoURL,
 		FaviconURL:          app.constants.FaviconURL,
+		AssetVersion:        app.constants.AssetVersion,
 		EnablePublicSubPage: app.constants.EnablePublicSubPage,
 		EnablePublicArchive: app.constants.EnablePublicArchive,
+		IndividualTracking:  app.constants.Privacy.IndividualTracking,
 	}
 
 	// Initialize the static file server.
@@ -787,7 +843,7 @@ func initHTTPServer(app *App) *echo.Echo {
 	// Start the server.
 	go func() {
 		if err := srv.Start(ko.String("app.address")); err != nil {
-			if strings.Contains(err.Error(), "Server closed") {
+			if errors.Is(err, http.ErrServerClosed) {
 				lo.Println("HTTP server shut down")
 			} else {
 				lo.Fatalf("error starting HTTP server: %v", err)
@@ -802,6 +858,22 @@ func initCaptcha() *captcha.Captcha {
 	return captcha.New(captcha.Opt{
 		CaptchaSecret: ko.String("security.captcha_secret"),
 	})
+}
+
+func initCron(core *core.Core) {
+	c := cron.New()
+	_, err := c.Add(ko.MustString("app.cache_slow_queries_interval"), func() {
+		lo.Println("refreshing slow query cache")
+		_ = core.RefreshMatViews(true)
+		lo.Println("done refreshing slow query cache")
+	})
+	if err != nil {
+		lo.Printf("error initializing slow cache query cron: %v", err)
+		return
+	}
+
+	c.Start()
+	lo.Printf("IMPORTANT: database slow query caching is enabled. Aggregate numbers and stats will not be realtime. Next refresh at: %v", c.Entries()[0].Next)
 }
 
 func awaitReload(sigChan chan os.Signal, closerWait chan bool, closer func()) chan bool {
@@ -846,4 +918,103 @@ func joinFSPaths(root string, paths []string) []string {
 	}
 
 	return out
+}
+
+func initTplFuncs(i *i18n.I18n, cs *constants) template.FuncMap {
+	funcs := template.FuncMap{
+		"RootURL": func() string {
+			return cs.RootURL
+		},
+		"LogoURL": func() string {
+			return cs.LogoURL
+		},
+		"Date": func(layout string) string {
+			if layout == "" {
+				layout = time.ANSIC
+			}
+			return time.Now().Format(layout)
+		},
+		"L": func() *i18n.I18n {
+			return i
+		},
+		"Safe": func(safeHTML string) template.HTML {
+			return template.HTML(safeHTML)
+		},
+	}
+
+	for k, v := range sprig.GenericFuncMap() {
+		funcs[k] = v
+	}
+
+	return funcs
+}
+
+func initAuth(db *sql.DB, ko *koanf.Koanf, co *core.Core) (bool, *auth.Auth) {
+	var oidcCfg auth.OIDCConfig
+
+	if ko.Bool("security.oidc.enabled") {
+		oidcCfg = auth.OIDCConfig{
+			Enabled:      true,
+			ProviderURL:  ko.String("security.oidc.provider_url"),
+			ClientID:     ko.String("security.oidc.client_id"),
+			ClientSecret: ko.String("security.oidc.client_secret"),
+			RedirectURL:  fmt.Sprintf("%s/auth/oidc", strings.TrimRight(ko.String("app.root_url"), "/")),
+		}
+	}
+
+	// Session manager callbacks for getting and setting cookies.
+	cb := &auth.Callbacks{
+		GetCookie: func(name string, r interface{}) (*http.Cookie, error) {
+			c := r.(echo.Context)
+			cookie, err := c.Cookie(name)
+			return cookie, err
+		},
+		SetCookie: func(cookie *http.Cookie, w interface{}) error {
+			c := w.(echo.Context)
+			c.SetCookie(cookie)
+			return nil
+		},
+		GetUser: func(id int) (models.User, error) {
+			return co.GetUser(id, "", "")
+		},
+	}
+
+	a, err := auth.New(auth.Config{
+		OIDC: oidcCfg,
+	}, db, cb, lo)
+	if err != nil {
+		lo.Fatalf("error initializing auth: %v", err)
+	}
+
+	// Cache all API users in-memory for token auth.
+	hasUsers, err := cacheUsers(co, a)
+	if err != nil {
+		lo.Fatalf("error loading API users to cache: %v", err)
+	}
+
+	// If the legacy username+password is set in the TOML file, use that as an API
+	// access token in the auth module to preserve backwards compatibility for existing
+	// API integrations. The presence of these values show a red banner on the admin UI
+	// prompting the creation of new API credentials and the removal of values from
+	// the TOML config.
+	var (
+		username = ko.String("app.admin_username")
+		password = ko.String("app.admin_password")
+	)
+	if len(username) > 2 && len(password) > 6 {
+		u := models.User{
+			Username:      username,
+			Password:      null.String{Valid: true, String: password},
+			PasswordLogin: true,
+			HasPassword:   true,
+			Status:        models.UserStatusEnabled,
+			Type:          models.UserTypeAPI,
+		}
+		u.UserRole.ID = auth.SuperAdminRoleID
+		a.CacheAPIUser(u)
+
+		lo.Println(`WARNING: Remove the admin_username and admin_password fields from the TOML configuration file. If you are using APIs, create and use new credentials. Users are now managed via the Admin -> Settings -> Users dashboard.`)
+	}
+
+	return hasUsers, a
 }

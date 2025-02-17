@@ -48,6 +48,10 @@ func handleUploadMedia(c echo.Context) error {
 		ext         = strings.TrimPrefix(strings.ToLower(filepath.Ext(file.Filename)), ".")
 		contentType = file.Header.Get("Content-Type")
 	)
+	if !isASCII(file.Filename) {
+		return echo.NewHTTPError(http.StatusUnprocessableEntity,
+			app.i18n.Ts("media.invalidFileName", "name", file.Filename))
+	}
 
 	// Validate file extension.
 	if !inArray("*", app.constants.MediaUpload.Extensions) {
@@ -57,8 +61,14 @@ func handleUploadMedia(c echo.Context) error {
 		}
 	}
 
-	// Upload the file.
+	// Sanitize filename.
 	fName := makeFilename(file.Filename)
+
+	// Add a random suffix to the filename to ensure uniqueness.
+	suffix, _ := generateRandomString(6)
+	fName = appendSuffixToFilename(fName, suffix)
+
+	// Upload the file.
 	fName, err = app.media.Put(fName, contentType, src)
 	if err != nil {
 		app.log.Printf("error uploading file: %v", err)

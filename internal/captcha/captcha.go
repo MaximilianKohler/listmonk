@@ -3,7 +3,7 @@ package captcha
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -58,17 +58,17 @@ func (c *Captcha) Verify(token string) (error, bool) {
 	}
 
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err, false
 	}
 
 	var r captchaResp
-	if json.Unmarshal(body, &r); err != nil {
+	if err := json.Unmarshal(body, &r); err != nil {
 		return err, true
 	}
 
-	if r.Success != true {
+	if !r.Success {
 		return fmt.Errorf("captcha failed: %s", strings.Join(r.ErrorCodes, ",")), false
 	}
 

@@ -10,34 +10,43 @@
             {{ $t('lists.optin') }}
           </b-tag>
           <span v-if="isEditing" class="has-text-grey-light is-size-7" :data-campaign-id="data.id">
-            {{ $t('globals.fields.id') }}: {{ data.id }} /
-            {{ $t('globals.fields.uuid') }}: {{ data.uuid }}
+            {{ $t('globals.fields.id') }}: <copy-text :text="`${data.id}`" />
+            {{ $t('globals.fields.uuid') }}: <copy-text :text="data.uuid" />
           </span>
         </p>
-        <h4 v-if="isEditing" class="title is-4">{{ data.name }}</h4>
-        <h4 v-else class="title is-4">{{ $t('campaigns.newCampaign') }}</h4>
+        <h4 v-if="isEditing" class="title is-4">
+          {{ data.name }}
+        </h4>
+        <h4 v-else class="title is-4">
+          {{ $t('campaigns.newCampaign') }}
+        </h4>
       </div>
 
       <div class="column is-6">
-        <div class="buttons">
+        <div v-if="$can('campaigns:manage')" class="buttons">
           <b-field grouped v-if="isEditing && canEdit">
             <b-field expanded>
-              <b-button  expanded @click="() => onSubmit('update')" :loading="loading.campaigns"
-                type="is-primary" icon-left="content-save-outline" data-cy="btn-save">
+              <b-button expanded @click="() => onSubmit('update')" :loading="loading.campaigns" type="is-primary"
+                icon-left="content-save-outline" data-cy="btn-save">
                 {{ $t('globals.buttons.saveChanges') }}
               </b-button>
             </b-field>
             <b-field expanded v-if="canStart">
-              <b-button  expanded @click="startCampaign" :loading="loading.campaigns"
-                type="is-primary" icon-left="rocket-launch-outline" data-cy="btn-start">
+              <b-button expanded @click="startCampaign" :loading="loading.campaigns" type="is-primary"
+                icon-left="rocket-launch-outline" data-cy="btn-start">
                 {{ $t('campaigns.start') }}
               </b-button>
             </b-field>
             <b-field expanded v-if="canSchedule">
-              <b-button  expanded @click="startCampaign"
-                :loading="loading.campaigns"
-                type="is-primary" icon-left="clock-start" data-cy="btn-schedule">
+              <b-button expanded @click="startCampaign" :loading="loading.campaigns" type="is-primary"
+                icon-left="clock-start" data-cy="btn-schedule">
                 {{ $t('campaigns.schedule') }}
+              </b-button>
+            </b-field>
+            <b-field expanded v-if="canUnSchedule">
+              <b-button expanded @click="unscheduleCampaign" :loading="loading.campaigns" type="is-primary"
+                icon-left="clock-start" data-cy="btn-unschedule">
+                {{ $t('campaigns.unSchedule') }}
               </b-button>
             </b-field>
           </b-field>
@@ -45,85 +54,83 @@
       </div>
     </header>
 
-    <b-loading :active="loading.campaigns"></b-loading>
+    <b-loading :active="loading.campaigns" />
 
     <b-tabs type="is-boxed" :animated="false" v-model="activeTab" @input="onTab">
-      <b-tab-item :label="$tc('globals.terms.campaign')" label-position="on-border"
-        value="campaign" icon="rocket-launch-outline">
+      <b-tab-item :label="$tc('globals.terms.campaign')" label-position="on-border" value="campaign"
+        icon="rocket-launch-outline">
         <section class="wrap">
           <div class="columns">
             <div class="column is-7">
               <form @submit.prevent="() => onSubmit(isNew ? 'create' : 'update')">
                 <b-field :label="$t('globals.fields.name')" label-position="on-border">
-                  <b-input :maxlength="200" :ref="'focus'" v-model="form.name"
-                    name="name" :disabled="!canEdit"
-                    :placeholder="$t('globals.fields.name')" required></b-input>
+                  <b-input :maxlength="200" :ref="'focus'" v-model="form.name" name="name" :disabled="!canEdit"
+                    :placeholder="$t('globals.fields.name')" required autofocus />
                 </b-field>
 
                 <b-field :label="$t('campaigns.subject')" label-position="on-border">
-                  <b-input :maxlength="200" v-model="form.subject"
-                    name="subject" :disabled="!canEdit"
-                    :placeholder="$t('campaigns.subject')" required></b-input>
+                  <b-input :maxlength="5000" v-model="form.subject" name="subject" :disabled="!canEdit"
+                    :placeholder="$t('campaigns.subject')" required />
                 </b-field>
 
                 <b-field :label="$t('campaigns.fromAddress')" label-position="on-border">
-                  <b-input :maxlength="200" v-model="form.fromEmail"
-                    name="from_email" :disabled="!canEdit"
-                    :placeholder="$t('campaigns.fromAddressPlaceholder')" required></b-input>
+                  <b-input :maxlength="200" v-model="form.fromEmail" name="from_email" :disabled="!canEdit"
+                    :placeholder="$t('campaigns.fromAddressPlaceholder')" required />
                 </b-field>
 
-                <list-selector
-                  v-model="form.lists"
-                  :selected="form.lists"
-                  :all="lists.results"
-                  :disabled="!canEdit"
-                  :label="$t('globals.terms.lists')"
-                  :placeholder="$t('campaigns.sendToLists')"
-                ></list-selector>
+                <list-selector v-model="form.lists" :selected="form.lists" :all="lists.results" :disabled="!canEdit"
+                  :label="$t('globals.terms.lists')" :placeholder="$t('campaigns.sendToLists')" />
 
                 <b-field :label="$tc('globals.terms.template')" label-position="on-border">
-                  <b-select :placeholder="$tc('globals.terms.template')" v-model="form.templateId"
-                    name="template" :disabled="!canEdit" required>
+                  <b-select :placeholder="$tc('globals.terms.template')" v-model="form.templateId" name="template"
+                    :disabled="!canEdit" required>
                     <template v-for="t in templates">
-                      <option v-if="t.type === 'campaign'"
-                        :value="t.id" :key="t.id">{{ t.name }}</option>
+                      <option v-if="t.type === 'campaign'" :value="t.id" :key="t.id">
+                        {{ t.name }}
+                      </option>
                     </template>
                   </b-select>
                 </b-field>
 
                 <b-field :label="$tc('globals.terms.messenger')" label-position="on-border">
-                  <b-select :placeholder="$tc('globals.terms.messenger')" v-model="form.messenger"
-                    name="messenger" :disabled="!canEdit" required>
-                    <option v-for="m in messengers"
-                      :value="m" :key="m">{{ m }}</option>
+                  <b-select :placeholder="$tc('globals.terms.messenger')" v-model="form.messenger" name="messenger"
+                    :disabled="!canEdit" required>
+                    <template v-if="emailMessengers.length > 1">
+                      <optgroup label="email">
+                        <option v-for="m in emailMessengers" :value="m" :key="m">
+                          {{ m }}
+                        </option>
+                      </optgroup>
+                    </template>
+                    <template v-else>
+                      <option value="email">email</option>
+                    </template>
+                    <option v-for="m in otherMessengers" :value="m" :key="m">
+                      {{ m }}
+                    </option>
                   </b-select>
                 </b-field>
 
                 <b-field :label="$t('globals.terms.tags')" label-position="on-border">
-                  <b-taginput v-model="form.tags" name="tags" :disabled="!canEdit"
-                    ellipsis icon="tag-outline" :placeholder="$t('globals.terms.tags')" />
+                  <b-taginput v-model="form.tags" name="tags" :disabled="!canEdit" ellipsis icon="tag-outline"
+                    :placeholder="$t('globals.terms.tags')" />
                 </b-field>
                 <hr />
 
                 <div class="columns">
                   <div class="column is-4">
                     <b-field :label="$t('campaigns.sendLater')" data-cy="btn-send-later">
-                        <b-switch v-model="form.sendLater" :disabled="!canEdit" />
+                      <b-switch v-model="form.sendLater" :disabled="!canEdit" />
                     </b-field>
                   </div>
                   <div class="column">
                     <br />
                     <b-field v-if="form.sendLater" data-cy="send_at"
                       :message="form.sendAtDate ? $utils.duration(Date(), form.sendAtDate) : ''">
-                      <b-datetimepicker
-                        v-model="form.sendAtDate"
-                        :disabled="!canEdit"
-                        :placeholder="$t('campaigns.dateAndTime')"
-                        icon="calendar-clock"
-                        :timepicker="{ hourFormat: '24' }"
-                        :datetime-formatter="formatDateTime"
-                        horizontal-time-picker>
-                      </b-datetimepicker>
+                      <b-datetimepicker v-model="form.sendAtDate" :disabled="!canEdit"
+                        :placeholder="$t('campaigns.dateAndTime')" icon="calendar-clock"
+                        :timepicker="{ hourFormat: '24' }" :datetime-formatter="formatDateTime"
+                        horizontal-time-picker />
                     </b-field>
                   </div>
                 </div>
@@ -134,38 +141,38 @@
                       <b-icon icon="plus" />{{ $t('settings.smtp.setCustomHeaders') }}
                     </a>
                   </p>
-                  <b-field v-if="form.headersStr !== '[]' || isHeadersVisible"
-                    label-position="on-border" :message="$t('campaigns.customHeadersHelp')">
+                  <b-field v-if="form.headersStr !== '[]' || isHeadersVisible" label-position="on-border"
+                    :message="$t('campaigns.customHeadersHelp')">
                     <b-input v-model="form.headersStr" name="headers" type="textarea"
-                      placeholder='[{"X-Custom": "value"}, {"X-Custom2": "value"}]'
+                      placeholder="[{&quot;X-Custom&quot;: &quot;value&quot;}, {&quot;X-Custom2&quot;: &quot;value&quot;}]"
                       :disabled="!canEdit" />
                   </b-field>
                 </div>
                 <hr />
 
                 <b-field v-if="isNew">
-                  <b-button native-type="submit" type="is-primary"
-                    :loading="loading.campaigns" data-cy="btn-continue">
+                  <b-button native-type="submit" type="is-primary" :loading="loading.campaigns" data-cy="btn-continue">
                     {{ $t('campaigns.continue') }}
                   </b-button>
                 </b-field>
               </form>
             </div>
-            <div class="column is-4 is-offset-1">
+            <div v-if="$can('campaigns:manage')" class="column is-4 is-offset-1">
               <br />
               <div class="box">
-                <h3 class="title is-size-6">{{ $t('campaigns.sendTest') }}</h3>
-                  <b-field :message="$t('campaigns.sendTestHelp')">
-                    <b-taginput v-model="form.testEmails"
-                      :before-adding="$utils.validateEmail" :disabled="isNew"
-                      ellipsis icon="email-outline" :placeholder="$t('campaigns.testEmails')" />
-                  </b-field>
-                  <b-field>
-                    <b-button @click="() => onSubmit('test')" :loading="loading.campaigns"
-                      :disabled="isNew" type="is-primary" icon-left="email-outline">
-                      {{ $t('campaigns.send') }}
-                    </b-button>
-                  </b-field>
+                <h3 class="title is-size-6">
+                  {{ $t('campaigns.sendTest') }}
+                </h3>
+                <b-field :message="$t('campaigns.sendTestHelp')">
+                  <b-taginput v-model="form.testEmails" :before-adding="$utils.validateEmail" :disabled="isNew" ellipsis
+                    icon="email-outline" :placeholder="$t('campaigns.testEmails')" />
+                </b-field>
+                <b-field>
+                  <b-button @click="() => onSubmit('test')" :loading="loading.campaigns" :disabled="isNew"
+                    type="is-primary" icon-left="email-outline">
+                    {{ $t('campaigns.send') }}
+                  </b-button>
+                </b-field>
               </div>
             </div>
           </div>
@@ -173,34 +180,29 @@
       </b-tab-item><!-- campaign -->
 
       <b-tab-item :label="$t('campaigns.content')" icon="text" :disabled="isNew" value="content">
-        <editor
-          v-model="form.content"
-          :id="data.id"
-          :title="data.name"
-          :templateId="form.templateId"
-          :contentType="data.contentType"
-          :body="data.body"
-          :disabled="!canEdit"
-        />
+        <editor v-model="form.content" :id="data.id" :title="data.name" :template-id="form.templateId"
+          :content-type="data.contentType" :body="data.body" :disabled="!canEdit" />
 
         <div class="columns">
           <div class="column is-6">
             <p v-if="!isAttachFieldVisible" class="is-size-6 has-text-grey">
               <a href="#" @click.prevent="onShowAttachField()" data-cy="btn-attach">
                 <b-icon icon="file-upload-outline" size="is-small" />
-                {{  $t('campaigns.addAttachments') }}
+                {{ $t('campaigns.addAttachments') }}
               </a>
             </p>
 
-            <b-field v-if="isAttachFieldVisible" :label="$t('campaigns.attachments')"
-              label-position="on-border" expanded data-cy="media">
-              <b-taginput v-model="form.media" name="media" ellipsis icon="tag-outline"
-                ref="media" field="filename" @focus="onOpenAttach" :disabled="!canEdit" />
+            <b-field v-if="isAttachFieldVisible" :label="$t('campaigns.attachments')" label-position="on-border"
+              expanded data-cy="media">
+              <b-taginput v-model="form.media" name="media" ellipsis icon="tag-outline" ref="media" field="filename"
+                @focus="onOpenAttach" :disabled="!canEdit" />
             </b-field>
           </div>
           <div class="column has-text-right">
-            <p v-if="canEdit && form.content.contentType !== 'plain'"
-              class="is-size-6 has-text-grey">
+            <a href="https://listmonk.app/docs/templating/#template-expressions" target="_blank"
+              rel="noopener noreferer">
+              <b-icon icon="code" /> {{ $t('campaigns.templatingRef') }}</a>
+            <span v-if="canEdit && form.content.contentType !== 'plain'" class="is-size-6 has-text-grey ml-6">
               <a v-if="form.altbody === null" href="#" @click.prevent="onAddAltBody">
                 <b-icon icon="text" size="is-small" /> {{ $t('campaigns.addAltText') }}
               </a>
@@ -208,64 +210,74 @@
                 <b-icon icon="trash-can-outline" size="is-small" />
                 {{ $t('campaigns.removeAltText') }}
               </a>
-            </p>
+            </span>
           </div>
         </div>
 
         <div v-if="canEdit && form.content.contentType !== 'plain'" class="alt-body">
-          <b-input v-if="form.altbody !== null" v-model="form.altbody"
-            type="textarea" :disabled="!canEdit" />
+          <b-input v-if="form.altbody !== null" v-model="form.altbody" type="textarea" :disabled="!canEdit" />
         </div>
       </b-tab-item><!-- content -->
 
-      <b-tab-item :label="$t('campaigns.archive')" icon="newspaper-variant-outline"
-        value="archive" :disabled="isNew">
+      <b-tab-item :label="$t('campaigns.archive')" icon="newspaper-variant-outline" value="archive" :disabled="isNew">
         <section class="wrap">
-          <b-field :label="$t('campaigns.archiveEnable')" data-cy="btn-archive"
-            :message="$t('campaigns.archiveHelp')">
-            <div class="columns">
-              <div class="column">
-                <b-switch data-cy="btn-archive" v-model="form.archive" :disabled="!canArchive" />
-              </div>
-              <div class="column is-12">
-                <a :href="`${settings['app.root_url']}/archive/${data.uuid}`" target="_blank"
-                  :class="{'has-text-grey-light': !form.archive}">
-                  <b-icon icon="link-variant" />
-                </a>
-              </div>
+          <div class="columns">
+            <div class="column is-4">
+              <b-field :label="$t('campaigns.archiveEnable')" data-cy="btn-archive"
+                :message="$t('campaigns.archiveHelp')">
+                <div class="columns">
+                  <div class="column">
+                    <b-switch data-cy="btn-archive" v-model="form.archive" :disabled="!canArchive" />
+                  </div>
+                  <div class="column is-12">
+                    <a :href="`${serverConfig.root_url}/archive/${data.uuid}`" target="_blank" rel="noopener noreferer"
+                      :class="{ 'has-text-grey-light': !form.archive }" aria-label="$t('campaigns.archive')">
+                      <b-icon icon="link-variant" />
+                    </a>
+                  </div>
+                </div>
+              </b-field>
             </div>
-          </b-field>
+            <div class="column is-8 has-text-right">
+              <b-field v-if="!canEdit && canArchive">
+                <b-button @click="onUpdateCampaignArchive" :loading="loading.campaigns" type="is-primary"
+                  icon-left="content-save-outline" data-cy="btn-save">
+                  {{ $t('globals.buttons.saveChanges') }}
+                </b-button>
+              </b-field>
+            </div>
+          </div>
 
           <div class="columns">
             <div class="column is-8">
               <b-field :label="$tc('globals.terms.template')" label-position="on-border">
-                <b-select :placeholder="$tc('globals.terms.template')"
-                  v-model="form.archiveTemplateId" name="template"
+                <b-select :placeholder="$tc('globals.terms.template')" v-model="form.archiveTemplateId" name="template"
                   :disabled="!canArchive || !form.archive" required>
                   <template v-for="t in templates">
-                    <option v-if="t.type === 'campaign'"
-                      :value="t.id" :key="t.id">{{ t.name }}</option>
+                    <option v-if="t.type === 'campaign'" :value="t.id" :key="t.id">
+                      {{ t.name }}
+                    </option>
                   </template>
                 </b-select>
               </b-field>
             </div>
 
             <div class="column has-text-right">
-              <a v-if="!this.form.archiveMetaStr || this.form.archiveMetaStr === '{}'"
-                class="button" href="#" @click.prevent="onFillArchiveMeta">{}</a>
+              <a v-if="!this.form.archiveMetaStr || this.form.archiveMetaStr === '{}'" class="button is-primary"
+                href="#" @click.prevent="onFillArchiveMeta" aria-label="{}"><b-icon icon="code" /></a>
             </div>
           </div>
-          <b-field :label="$t('campaigns.archiveMeta')"
-            :message="$t('campaigns.archiveMetaHelp')" label-position="on-border">
-            <b-input v-model="form.archiveMetaStr" name="archive_meta" type="textarea"
-              data-cy="archive-meta" :disabled="!canArchive || !form.archive" rows="20" />
+          <b-field>
+            <b-field :label="$t('campaigns.archiveSlug')" label-position="on-border"
+              :message="$t('campaigns.archiveSlugHelp')">
+              <b-input :maxlength="200" :ref="'focus'" v-model="form.archiveSlug" name="archive_slug"
+                data-cy="archive-slug" :disabled="!canArchive || !form.archive" />
+            </b-field>
           </b-field>
-
-          <b-field v-if="!canEdit && canArchive">
-            <b-button @click="onUpdateCampaignArchive" :loading="loading.campaigns"
-              type="is-primary" icon-left="content-save-outline" data-cy="btn-archive-save">
-              {{ $t('globals.buttons.saveChanges') }}
-            </b-button>
+          <b-field :label="$t('campaigns.archiveMeta')" :message="$t('campaigns.archiveMetaHelp')"
+            label-position="on-border">
+            <b-input v-model="form.archiveMetaStr" name="archive_meta" type="textarea" data-cy="archive-meta"
+              :disabled="!canArchive || !form.archive" rows="20" />
           </b-field>
         </section>
       </b-tab-item><!-- archive -->
@@ -282,22 +294,22 @@
 </template>
 
 <script>
-import Vue from 'vue';
-import { mapState } from 'vuex';
 import dayjs from 'dayjs';
 import htmlToPlainText from 'textversionjs';
+import Vue from 'vue';
+import { mapState } from 'vuex';
 
-import ListSelector from '../components/ListSelector.vue';
+import CopyText from '../components/CopyText.vue';
 import Editor from '../components/Editor.vue';
+import ListSelector from '../components/ListSelector.vue';
 import Media from './Media.vue';
-
-const TABS = ['campaign', 'content', 'archive'];
 
 export default Vue.extend({
   components: {
     ListSelector,
     Editor,
     Media,
+    CopyText,
   },
 
   data() {
@@ -307,7 +319,7 @@ export default Vue.extend({
       isHeadersVisible: false,
       isAttachFieldVisible: false,
       isAttachModalOpen: false,
-      activeTab: 0,
+      activeTab: 'campaign',
 
       data: {},
 
@@ -316,6 +328,7 @@ export default Vue.extend({
 
       // Binds form input values.
       form: {
+        archiveSlug: null,
         name: '',
         subject: '',
         fromEmail: '',
@@ -382,13 +395,15 @@ export default Vue.extend({
         || this.data.contentType !== this.form.content.contentType;
     },
 
-    onTab(t) {
-      const tab = TABS[t];
+    onTab(tab) {
       if (tab === 'content' && window.tinymce && window.tinymce.editors.length > 0) {
         this.$nextTick(() => {
           window.tinymce.editors[0].focus();
         });
       }
+
+      // this.$router.replace({ hash: `#${tab}` });
+      window.history.replaceState({}, '', `#${tab}`);
     },
 
     onFillArchiveMeta() {
@@ -489,6 +504,7 @@ export default Vue.extend({
 
     createCampaign() {
       const data = {
+        archiveSlug: this.form.subject,
         name: this.form.name,
         subject: this.form.subject,
         lists: this.form.lists.map((l) => l.id),
@@ -497,7 +513,6 @@ export default Vue.extend({
         messenger: this.form.messenger,
         type: 'regular',
         tags: this.form.tags,
-        send_later: this.form.sendLater,
         send_at: this.form.sendLater ? this.form.sendAtDate : null,
         headers: this.form.headers,
         template_id: this.form.templateId,
@@ -513,6 +528,7 @@ export default Vue.extend({
 
     async updateCampaign(typ) {
       const data = {
+        archive_slug: this.form.archiveSlug,
         name: this.form.name,
         subject: this.form.subject,
         lists: this.form.lists.map((l) => l.id),
@@ -520,7 +536,6 @@ export default Vue.extend({
         messenger: this.form.messenger,
         type: 'regular',
         tags: this.form.tags,
-        send_later: this.form.sendLater,
         send_at: this.form.sendLater ? this.form.sendAtDate : null,
         headers: this.form.headers,
         template_id: this.form.templateId,
@@ -542,6 +557,7 @@ export default Vue.extend({
       return new Promise((resolve) => {
         this.$api.updateCampaign(this.data.id, data).then((d) => {
           this.data = d;
+          this.form.archiveSlug = d.archiveSlug;
           this.$utils.toast(this.$t(typMsg, { name: d.name }));
           resolve();
         });
@@ -557,9 +573,12 @@ export default Vue.extend({
         archive: this.form.archive,
         archive_template_id: this.form.archiveTemplateId,
         archive_meta: JSON.parse(this.form.archiveMetaStr),
+        archive_slug: this.form.archiveSlug,
       };
 
-      this.$api.updateCampaignArchive(this.data.id, data);
+      this.$api.updateCampaignArchive(this.data.id, data).then((d) => {
+        this.form.archiveSlug = d.archiveSlug;
+      });
     },
 
     // Starts or schedule a campaign.
@@ -568,7 +587,8 @@ export default Vue.extend({
         return;
       }
 
-      this.$utils.confirm(null,
+      this.$utils.confirm(
+        null,
         () => {
           // First save the campaign.
           this.updateCampaign().then(() => {
@@ -586,24 +606,36 @@ export default Vue.extend({
               this.$router.push({ name: 'campaigns' });
             });
           });
-        });
+        },
+      );
+    },
+
+    unscheduleCampaign() {
+      this.$api.changeCampaignStatus(this.data.id, 'draft').then((d) => {
+        this.data = d;
+        this.form.archiveSlug = d.archiveSlug;
+      });
     },
   },
 
   computed: {
-    ...mapState(['settings', 'loading', 'lists', 'templates']),
+    ...mapState(['serverConfig', 'loading', 'lists', 'templates']),
 
     canEdit() {
       return this.isNew
-        || this.data.status === 'draft' || this.data.status === 'scheduled';
+        || this.data.status === 'draft' || this.data.status === 'scheduled' || this.data.status === 'paused';
     },
 
     canSchedule() {
       return this.data.status === 'draft' && this.data.sendAt;
     },
 
+    canUnSchedule() {
+      return this.data.status === 'scheduled' && this.data.sendAt;
+    },
+
     canStart() {
-      return this.data.status === 'draft' && !this.data.sendAt;
+      return this.data.status === 'draft' || this.data.status === 'paused';
     },
 
     canArchive() {
@@ -618,8 +650,12 @@ export default Vue.extend({
       return this.lists.results.filter((l) => this.selListIDs.indexOf(l.id) > -1);
     },
 
-    messengers() {
-      return ['email', ...this.settings.messengers.map((m) => m.name)];
+    emailMessengers() {
+      return ['email', ...this.serverConfig.messengers.filter((m) => m.startsWith('email-'))];
+    },
+
+    otherMessengers() {
+      return this.serverConfig.messengers.filter((m) => m !== 'email' && !m.startsWith('email-'));
     },
   },
 
@@ -641,7 +677,7 @@ export default Vue.extend({
     window.onbeforeunload = () => this.isUnsaved() || null;
 
     // Fill default form fields.
-    this.form.fromEmail = this.settings['app.from_email'];
+    this.form.fromEmail = this.serverConfig.from_email;
 
     // New campaign.
     const { id } = this.$route.params;
@@ -681,8 +717,8 @@ export default Vue.extend({
     // Fetch campaign.
     if (this.isEditing) {
       this.getCampaign(id).then(() => {
-        if (this.$route.hash === '#content') {
-          this.activeTab = 1;
+        if (this.$route.hash !== '') {
+          this.activeTab = this.$route.hash.replace('#', '');
         }
       });
     } else {

@@ -8,6 +8,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 var (
@@ -33,6 +37,13 @@ func makeFilename(fName string) string {
 	// replace whitespace with "-"
 	name = regexpSpaces.ReplaceAllString(name, "-")
 	return filepath.Base(name)
+}
+
+// appendSuffixToFilename adds a string suffix to the filename while keeping the file extension.
+func appendSuffixToFilename(filename, suffix string) string {
+	ext := filepath.Ext(filename)
+	name := strings.TrimSuffix(filename, ext)
+	return fmt.Sprintf("%s_%s%s", name, suffix, ext)
 }
 
 // makeMsgTpl takes a page title, heading, and message and returns
@@ -103,4 +114,22 @@ func strSliceContains(str string, sl []string) bool {
 
 func trimNullBytes(b []byte) string {
 	return string(bytes.Trim(b, "\x00"))
+}
+
+func titleCase(input string) string {
+	parts := strings.Fields(input)
+	for n, p := range parts {
+		parts[n] = cases.Title(language.Und).String(p)
+	}
+
+	return strings.Join(parts, " ")
+}
+
+func isASCII(s string) bool {
+	for _, c := range s {
+		if c > unicode.MaxASCII {
+			return false
+		}
+	}
+	return true
 }

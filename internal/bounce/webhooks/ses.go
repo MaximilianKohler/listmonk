@@ -8,7 +8,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -49,7 +49,10 @@ type sesMail struct {
 	EventType string `json:"eventType"`
 	NotifType string `json:"notificationType"`
 	Bounce    struct {
-		BounceType string `json:"bounceType"`
+		BounceType        string `json:"bounceType"`
+		BouncedRecipients []struct {
+			Status string `json:"status"`
+		} `json:"bouncedRecipients"`
 	} `json:"bounce"`
 	Mail struct {
 		Timestamp        sesTimestamp        `json:"timestamp"`
@@ -131,6 +134,12 @@ func (s *SES) ProcessBounce(b []byte) (models.Bounce, error) {
 	typ := models.BounceTypeSoft
 	if m.Bounce.BounceType == "Permanent" {
 		typ = models.BounceTypeHard
+	}
+	if m.Bounce.BounceType == "Transient" && len(m.Bounce.BouncedRecipients) > 0 {
+		// "Invalid domain" bounce.
+		if m.Bounce.BouncedRecipients[0].Status == "5.4.4" {
+			typ = models.BounceTypeHard
+		}
 	}
 	if m.NotifType == "Complaint" {
 		typ = models.BounceTypeComplaint
@@ -230,7 +239,7 @@ func (s *SES) getCert(certURL string) (*x509.Certificate, error) {
 		return nil, fmt.Errorf("invalid SNS certificate URL: %v", u.Host)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

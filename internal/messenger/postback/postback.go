@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/textproto"
 	"time"
@@ -18,6 +17,7 @@ import (
 //easyjson:json
 type postback struct {
 	Subject     string       `json:"subject"`
+	FromEmail   string       `json:"from_email"`
 	ContentType string       `json:"content_type"`
 	Body        string       `json:"body"`
 	Recipients  []recipient  `json:"recipients"`
@@ -97,6 +97,7 @@ func (p *Postback) Name() string {
 func (p *Postback) Push(m models.Message) error {
 	pb := postback{
 		Subject:     m.Subject,
+		FromEmail:   m.From,
 		ContentType: m.ContentType,
 		Body:        string(m.Body),
 		Recipients: []recipient{{
@@ -129,6 +130,7 @@ func (p *Postback) Push(m models.Message) error {
 			copy(a.Content, f.Content)
 			files = append(files, a)
 		}
+		pb.Attachments = files
 	}
 
 	b, err := pb.MarshalJSON()
@@ -196,7 +198,7 @@ func (p *Postback) exec(method, rURL string, reqBody []byte, headers http.Header
 	}
 	defer func() {
 		// Drain and close the body to let the Transport reuse the connection
-		io.Copy(ioutil.Discard, r.Body)
+		io.Copy(io.Discard, r.Body)
 		r.Body.Close()
 	}()
 

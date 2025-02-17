@@ -5,9 +5,9 @@ package postback
 import (
 	json "encoding/json"
 	models "github.com/knadh/listmonk/models"
-	easyjson "github.com/mailru/easyjson"
-	jlexer "github.com/mailru/easyjson/jlexer"
-	jwriter "github.com/mailru/easyjson/jwriter"
+	easyjson "github.com/zerodha/easyjson"
+	jlexer "github.com/zerodha/easyjson/jlexer"
+	jwriter "github.com/zerodha/easyjson/jwriter"
 	textproto "net/textproto"
 )
 
@@ -40,6 +40,8 @@ func easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback(in *j
 		switch key {
 		case "subject":
 			out.Subject = string(in.String())
+		case "from_email":
+			out.FromEmail = string(in.String())
 		case "content_type":
 			out.ContentType = string(in.String())
 		case "body":
@@ -120,6 +122,11 @@ func easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback(out *
 		out.String(string(in.Subject))
 	}
 	{
+		const prefix string = ",\"from_email\":"
+		out.RawString(prefix)
+		out.String(string(in.FromEmail))
+	}
+	{
 		const prefix string = ",\"content_type\":"
 		out.RawString(prefix)
 		out.String(string(in.ContentType))
@@ -175,7 +182,7 @@ func easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback(out *
 
 // MarshalJSON supports json.Marshaler interface
 func (v postback) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
+	w := jwriter.Writer{FloatFmt: ""}
 	easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }

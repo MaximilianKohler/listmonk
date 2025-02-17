@@ -8,7 +8,7 @@ Messengers support optional BasicAuth authentication. `Plain text` format for ca
 
 When a campaign starts, listmonk POSTs messages in the following format to the selected messenger's endpoint. The endpoint should return a `200 OK` response in case of a successful request.
 
-The address required to broadcast the message, for instance, a phone number or an FCM ID, is expected to be stored and relayed as [subscriber attributes](../concepts/#attributes). 
+The address required to broadcast the message, for instance, a phone number or an FCM ID, is expected to be stored and relayed as [subscriber attributes](concepts.md/#attributes). 
 
 ```json
 {
@@ -38,6 +38,10 @@ The address required to broadcast the message, for instance, a phone number or a
 
 Following is a list of HTTP messenger servers that connect to various backends.
 
-| Name                                                                   | Backend      |
-|------------------------------------------------------------------------|------------------|
-| [listmonk-messenger](https://github.com/joeirimpan/listmonk-messenger) | AWS Pinpoint SMS |
+| Name                                                                                 | Backend          |
+|:-------------------------------------------------------------------------------------|:-----------------|
+| [listmonk-messenger](https://github.com/joeirimpan/listmonk-messenger)               | AWS Pinpoint SMS |
+| [listmonk-verimor-gateway](https://github.com/antandros/listmonk-verimor-gateway)    | Verimor          |
+| [listmonk-mailersend](https://github.com/tkawczynski/listmonk-mailersend)            | Mailersend       |
+| [listmonk-novu-messenger](https://github.com/Codepowercode/listmonk-novu-messenger)  | Novu             |
+| [listmonk-push-messenger](https://github.com/shyamkrishna21/listmonk-push-messenger) | Google FCM       |

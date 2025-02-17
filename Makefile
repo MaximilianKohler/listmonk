@@ -1,8 +1,8 @@
 # Try to get the commit hash from 1) git 2) the VERSION file 3) fallback.
-LAST_COMMIT := $(or $(shell git rev-parse --short HEAD 2> /dev/null),$(shell head -n 1 VERSION | grep -oP -m 1 "^[a-z0-9]+$$"),"UNKNOWN")
+LAST_COMMIT := $(or $(shell git rev-parse --short HEAD 2> /dev/null),$(shell head -n 1 VERSION | grep -oP -m 1 "^[a-z0-9]+$$"),"")
 
 # Try to get the semver from 1) git 2) the VERSION file 3) fallback.
-VERSION := $(or $(shell git describe --tags --abbrev=0 2> /dev/null),$(shell grep -oP "tag: \K(.*)(?=,)" VERSION),"v0.0.0")
+VERSION := $(or $(LISTMONK_VERSION),$(shell git describe --tags --abbrev=0 2> /dev/null),$(shell grep -oP 'tag: \Kv\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?' VERSION),"v0.0.0")
 
 BUILDSTR := ${VERSION} (\#${LAST_COMMIT} $(shell date -u +"%Y-%m-%dT%H:%M:%S%z"))
 
@@ -13,14 +13,15 @@ FRONTEND_YARN_MODULES = frontend/node_modules
 FRONTEND_DIST = frontend/dist
 FRONTEND_DEPS = \
 	$(FRONTEND_YARN_MODULES) \
+	frontend/index.html \
 	frontend/package.json \
-	frontend/vue.config.js \
-	frontend/babel.config.js \
+	frontend/vite.config.js \
+	frontend/.eslintrc.js \
 	$(shell find frontend/fontello frontend/public frontend/src -type f)
 
 BIN := listmonk
 STATIC := config.toml.sample \
-	schema.sql queries.sql \
+	schema.sql queries.sql permissions.json \
 	static/public:/public \
 	static/email-templates \
 	frontend/dist:/admin \
@@ -37,7 +38,7 @@ $(FRONTEND_YARN_MODULES): frontend/package.json frontend/yarn.lock
 	touch -c $(FRONTEND_YARN_MODULES)
 
 # Build the backend to ./listmonk.
-$(BIN): $(shell find . -type f -name "*.go")
+$(BIN): $(shell find . -type f -name "*.go") go.mod go.sum schema.sql queries.sql permissions.json
 	CGO_ENABLED=0 go build -o ${BIN} -ldflags="-s -w -X 'main.buildString=${BUILDSTR}' -X 'main.versionString=${VERSION}'" cmd/*.go
 
 # Run the backend in dev mode. The frontend assets in dev mode are loaded from disk from frontend/dist.
@@ -57,7 +58,7 @@ build-frontend: $(FRONTEND_DIST)
 # Run the JS frontend server in dev mode.
 .PHONY: run-frontend
 run-frontend:
-	export VUE_APP_VERSION="${VERSION}" && cd frontend && $(YARN) serve
+	export VUE_APP_VERSION="${VERSION}" && cd frontend && $(YARN) dev
 
 # Run Go tests.
 .PHONY: test
@@ -78,24 +79,24 @@ pack-bin: build-frontend $(BIN) $(STUFFBIN)
 # Use goreleaser to do a dry run producing local builds.
 .PHONY: release-dry
 release-dry:
-	goreleaser --parallelism 1 --rm-dist --snapshot --skip-validate --skip-publish
+	goreleaser release --parallelism 1 --clean --snapshot --skip=publish
 
 # Use goreleaser to build production releases and publish them.
 .PHONY: release
 release:
-	goreleaser --parallelism 1 --rm-dist --skip-validate
+	goreleaser release --parallelism 1 --clean
 
 # Build local docker images for development.
 .PHONY: build-dev-docker
 build-dev-docker: build ## Build docker containers for the entire suite (Front/Core/PG).
 	cd dev; \
-	docker-compose build ; \
+	docker compose build ; \
 
 # Spin a local docker suite for local development.
 .PHONY: dev-docker
 dev-docker: build-dev-docker ## Build and spawns docker containers for the entire suite (Front/Core/PG).
 	cd dev; \
-	docker-compose up
+	docker compose up
 
 # Run the backend in docker-dev mode. The frontend assets in dev mode are loaded from disk from frontend/dist.
 .PHONY: run-backend-docker
@@ -106,10 +107,10 @@ run-backend-docker:
 .PHONY: rm-dev-docker
 rm-dev-docker: build ## Delete the docker containers including DB volumes.
 	cd dev; \
-	docker-compose down -v ; \
+	docker compose down -v ; \
 
 # Setup the db for local dev docker suite.
 .PHONY: init-dev-docker
 init-dev-docker: build-dev-docker ## Delete the docker containers including DB volumes.
 	cd dev; \
-	docker-compose run --rm backend sh -c "make dist && ./listmonk --install --idempotent --yes --config dev/config.toml"
+	docker compose run --rm backend sh -c "make dist && ./listmonk --install --idempotent --yes --config dev/config.toml"

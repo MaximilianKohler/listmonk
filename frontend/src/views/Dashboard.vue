@@ -2,7 +2,9 @@
   <section class="dashboard content">
     <header class="columns">
       <div class="column is-two-thirds">
-        <h1 class="title is-5">{{ $utils.niceDate(new Date()) }}</h1>
+        <h1 class="title is-5">
+          {{ $utils.niceDate(new Date()) }}
+        </h1>
       </div>
     </header>
 
@@ -26,19 +28,19 @@
                   <div class="column is-6">
                     <ul class="no has-text-grey">
                       <li>
-                        <label>{{ $utils.niceNumber(counts.lists.public) }}</label>
+                        <label for="#">{{ $utils.niceNumber(counts.lists.public) }}</label>
                         {{ $t('lists.types.public') }}
                       </li>
                       <li>
-                        <label>{{ $utils.niceNumber(counts.lists.private) }}</label>
+                        <label for="#">{{ $utils.niceNumber(counts.lists.private) }}</label>
                         {{ $t('lists.types.private') }}
                       </li>
                       <li>
-                        <label>{{ $utils.niceNumber(counts.lists.optinSingle) }}</label>
+                        <label for="#">{{ $utils.niceNumber(counts.lists.optinSingle) }}</label>
                         {{ $t('lists.optins.single') }}
                       </li>
                       <li>
-                        <label>{{ $utils.niceNumber(counts.lists.optinDouble) }}</label>
+                        <label for="#">{{ $utils.niceNumber(counts.lists.optinDouble) }}</label>
                         {{ $t('lists.optins.double') }}
                       </li>
                     </ul>
@@ -60,7 +62,7 @@
                   <div class="column is-6">
                     <ul class="no has-text-grey">
                       <li v-for="(num, status) in counts.campaigns.byStatus" :key="status">
-                        <label :data-cy="`campaigns-${status}`">{{ num }}</label>
+                        <label for="#" :data-cy="`campaigns-${status}`">{{ num }}</label>
                         {{ $t(`campaigns.status.${status}`) }}
                         <span v-if="status === 'running'" class="spinner is-tiny">
                           <b-loading :is-full-page="false" active />
@@ -89,11 +91,11 @@
                   <div class="column is-6">
                     <ul class="no has-text-grey">
                       <li>
-                        <label>{{ $utils.niceNumber(counts.subscribers.blocklisted) }}</label>
+                        <label for="#">{{ $utils.niceNumber(counts.subscribers.blocklisted) }}</label>
                         {{ $t('subscribers.status.blocklisted') }}
                       </li>
                       <li>
-                        <label>{{ $utils.niceNumber(counts.subscribers.orphans) }}</label>
+                        <label for="#">{{ $utils.niceNumber(counts.subscribers.orphans) }}</label>
                         {{ $t('dashboard.orphanSubs') }}
                       </li>
                     </ul>
@@ -119,40 +121,51 @@
             <article class="tile is-child notification charts">
               <div class="columns">
                 <div class="column is-6">
-                  <h3 class="title is-size-6">{{ $t('dashboard.campaignViews') }}</h3><br />
-                  <div ref="chart-views"></div>
+                  <h3 class="title is-size-6">
+                    {{ $t('dashboard.campaignViews') }}
+                  </h3><br />
+                  <chart type="line" v-if="campaignViews" :data="campaignViews" />
                 </div>
                 <div class="column is-6">
                   <h3 class="title is-size-6 has-text-right">
                     {{ $t('dashboard.linkClicks') }}
                   </h3><br />
-                  <div ref="chart-clicks"></div>
+                  <chart type="line" v-if="campaignClicks" :data="campaignClicks" />
                 </div>
               </div>
             </article>
           </div>
         </div>
       </div><!-- tile block -->
+      <p v-if="settings['app.cache_slow_queries']" class="has-text-grey">
+        *{{ $t('globals.messages.slowQueriesCached') }}
+        <a href="https://listmonk.app/docs/maintenance/performance/" target="_blank" rel="noopener noreferer"
+          class="has-text-grey">
+          <b-icon icon="link-variant" /> {{ $t('globals.buttons.learnMore') }}
+        </a>
+      </p>
     </section>
   </section>
 </template>
 
-<style lang="css">
-  @import "~c3/c3.css";
-</style>
-
 <script>
-import Vue from 'vue';
-import c3 from 'c3';
 import dayjs from 'dayjs';
+import Vue from 'vue';
+import { mapState } from 'vuex';
 import { colors } from '../constants';
+import Chart from '../components/Chart.vue';
 
 export default Vue.extend({
+  components: {
+    Chart,
+  },
+
   data() {
     return {
       isChartsLoading: true,
       isCountsLoading: true,
-
+      campaignViews: null,
+      campaignClicks: null,
       counts: {
         lists: {},
         subscribers: {},
@@ -163,45 +176,27 @@ export default Vue.extend({
   },
 
   methods: {
-    renderChart(label, data, el) {
-      const conf = {
-        bindto: el,
-        unload: true,
-        data: {
-          type: 'spline',
-          columns: [],
-          color() {
-            return colors.primary;
-          },
-          empty: { label: { text: this.$t('globals.messages.emptyState') } },
-        },
-        axis: {
-          x: {
-            type: 'category',
-            categories: data.map((d) => dayjs(d.date).format('DD MMM')),
-            tick: {
-              rotate: -45,
-              multiline: false,
-              culling: { max: 10 },
-            },
-          },
-        },
-        legend: {
-          show: false,
-        },
-      };
-
-      if (data.length > 0) {
-        conf.data.columns.push([label, ...data.map((d) => d.count)]);
+    makeChart(data) {
+      if (data.length === 0) {
+        return {};
       }
-
-      this.$nextTick(() => {
-        c3.generate(conf);
-      });
+      return {
+        labels: data.map((d) => dayjs(d.date).format('DD MMM')),
+        datasets: [
+          {
+            data: [...data.map((d) => d.count)],
+            borderColor: colors.primary,
+            borderWidth: 2,
+            pointHoverBorderWidth: 5,
+            pointBorderWidth: 0.5,
+          },
+        ],
+      };
     },
   },
 
   computed: {
+    ...mapState(['settings']),
     dayjs() {
       return dayjs;
     },
@@ -217,8 +212,8 @@ export default Vue.extend({
     // Pull the charts.
     this.$api.getDashboardCharts().then((data) => {
       this.isChartsLoading = false;
-      this.renderChart(this.$t('dashboard.campaignViews'), data.campaignViews, this.$refs['chart-views']);
-      this.renderChart(this.$t('dashboard.linkClicks'), data.linkClicks, this.$refs['chart-clicks']);
+      this.campaignViews = this.makeChart(data.campaignViews);
+      this.campaignClicks = this.makeChart(data.linkClicks);
     });
   },
 });

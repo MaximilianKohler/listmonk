@@ -15,10 +15,12 @@ type Settings struct {
 	CheckUpdates                  bool     `json:"app.check_updates"`
 	AppLang                       string   `json:"app.lang"`
 
-	AppBatchSize     int `json:"app.batch_size"`
-	AppConcurrency   int `json:"app.concurrency"`
-	AppMaxSendErrors int `json:"app.max_send_errors"`
-	AppMessageRate   int `json:"app.message_rate"`
+	AppBatchSize             int    `json:"app.batch_size"`
+	AppConcurrency           int    `json:"app.concurrency"`
+	AppMaxSendErrors         int    `json:"app.max_send_errors"`
+	AppMessageRate           int    `json:"app.message_rate"`
+	CacheSlowQueries         bool   `json:"app.cache_slow_queries"`
+	CacheSlowQueriesInterval string `json:"app.cache_slow_queries_interval"`
 
 	AppMessageSlidingWindow         bool   `json:"app.message_sliding_window"`
 	AppMessageSlidingWindowDuration string `json:"app.message_sliding_window_duration"`
@@ -38,6 +40,13 @@ type Settings struct {
 	SecurityCaptchaKey    string `json:"security.captcha_key"`
 	SecurityCaptchaSecret string `json:"security.captcha_secret"`
 
+	OIDC struct {
+		Enabled      bool   `json:"enabled"`
+		ProviderURL  string `json:"provider_url"`
+		ClientID     string `json:"client_id"`
+		ClientSecret string `json:"client_secret"`
+	} `json:"security.oidc"`
+
 	UploadProvider             string   `json:"upload.provider"`
 	UploadExtensions           []string `json:"upload.extensions"`
 	UploadFilesystemUploadPath string   `json:"upload.filesystem.upload_path"`
@@ -54,6 +63,7 @@ type Settings struct {
 	UploadS3Expiry             string   `json:"upload.s3.expiry"`
 
 	SMTP []struct {
+		Name          string              `json:"name"`
 		UUID          string              `json:"uuid"`
 		Enabled       bool                `json:"enabled"`
 		Host          string              `json:"host"`
@@ -92,7 +102,16 @@ type Settings struct {
 	SESEnabled      bool   `json:"bounce.ses_enabled"`
 	SendgridEnabled bool   `json:"bounce.sendgrid_enabled"`
 	SendgridKey     string `json:"bounce.sendgrid_key"`
-	BounceBoxes     []struct {
+	BouncePostmark  struct {
+		Enabled  bool   `json:"enabled"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+	} `json:"bounce.postmark"`
+	BounceForwardEmail struct {
+		Enabled bool   `json:"enabled"`
+		Key     string `json:"key"`
+	} `json:"bounce.forwardemail"`
+	BounceBoxes []struct {
 		UUID          string `json:"uuid"`
 		Enabled       bool   `json:"enabled"`
 		Type          string `json:"type"`

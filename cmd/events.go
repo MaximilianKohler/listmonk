@@ -38,8 +38,6 @@ func handleEventStream(c echo.Context) error {
 				continue
 			}
 
-			fmt.Printf("data: %s\n\n", b)
-
 			c.Response().Write([]byte(fmt.Sprintf("retry: 3000\ndata: %s\n\n", b)))
 			c.Response().Flush()
 
@@ -50,5 +48,4 @@ func handleEventStream(c echo.Context) error {
 		}
 	}
 
-	return nil
 }

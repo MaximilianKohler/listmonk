@@ -3,7 +3,7 @@ package main
 import (
 	"net/http"
 
-	"github.com/gofrs/uuid"
+	"github.com/gofrs/uuid/v5"
 	"github.com/knadh/listmonk/internal/core"
 	"github.com/knadh/listmonk/internal/manager"
 	"github.com/knadh/listmonk/internal/media"
@@ -20,6 +20,14 @@ type store struct {
 	h       *http.Client
 }
 
+type runningCamp struct {
+	CampaignID       int    `db:"campaign_id"`
+	CampaignType     string `db:"campaign_type"`
+	LastSubscriberID int    `db:"last_subscriber_id"`
+	MaxSubscriberID  int    `db:"max_subscriber_id"`
+	ListID           int    `db:"list_id"`
+}
+
 func newManagerStore(q *models.Queries, c *core.Core, m media.Store) *store {
 	return &store{
 		queries: q,
@@ -28,10 +36,12 @@ func newManagerStore(q *models.Queries, c *core.Core, m media.Store) *store {
 	}
 }
 
-// NextCampaigns retrieves active campaigns ready to be processed.
-func (s *store) NextCampaigns(excludeIDs []int64) ([]*models.Campaign, error) {
+// NextCampaigns retrieves active campaigns ready to be processed excluding
+// campaigns that are also being processed. Additionally, it takes a map of campaignID:sentCount
+// of campaigns that are being processed and updates them in the DB.
+func (s *store) NextCampaigns(currentIDs []int64, sentCounts []int64) ([]*models.Campaign, error) {
 	var out []*models.Campaign
-	err := s.queries.NextCampaigns.Select(&out, pq.Int64Array(excludeIDs))
+	err := s.queries.NextCampaigns.Select(&out, pq.Int64Array(currentIDs), pq.Int64Array(sentCounts))
 	return out, err
 }
 
@@ -40,21 +50,41 @@ func (s *store) NextCampaigns(excludeIDs []int64) ([]*models.Campaign, error) {
 // and every batch takes the last ID of the last batch and fetches the next
 // batch above that.
 func (s *store) NextSubscribers(campID, limit int) ([]models.Subscriber, error) {
+	var camps []runningCamp
+	if err := s.queries.GetRunningCampaign.Select(&camps, campID); err != nil {
+		return nil, err
+	}
+
+	var listIDs []int
+	for _, c := range camps {
+		listIDs = append(listIDs, c.ListID)
+	}
+
+	if len(listIDs) == 0 {
+		return nil, nil
+	}
+
 	var out []models.Subscriber
-	err := s.queries.NextCampaignSubscribers.Select(&out, campID, limit)
+	err := s.queries.NextCampaignSubscribers.Select(&out, camps[0].CampaignID, camps[0].CampaignType, camps[0].LastSubscriberID, camps[0].MaxSubscriberID, pq.Array(listIDs), limit)
 	return out, err
 }
 
 // GetCampaign fetches a campaign from the database.
 func (s *store) GetCampaign(campID int) (*models.Campaign, error) {
 	var out = &models.Campaign{}
-	err := s.queries.GetCampaign.Get(out, campID, nil, "default")
+	err := s.queries.GetCampaign.Get(out, campID, nil, nil, "default")
 	return out, err
 }
 
 // UpdateCampaignStatus updates a campaign's status.
 func (s *store) UpdateCampaignStatus(campID int, status string) error {
 	_, err := s.queries.UpdateCampaignStatus.Exec(campID, status)
+	return err
+}
+
+// UpdateCampaignCounts updates a campaign's status.
+func (s *store) UpdateCampaignCounts(campID int, toSend int, sent int, lastSubID int) error {
+	_, err := s.queries.UpdateCampaignCounts.Exec(campID, toSend, sent, lastSubID)
 	return err
 }
 

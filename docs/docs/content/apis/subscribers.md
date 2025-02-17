@@ -1,34 +1,61 @@
 # API / Subscribers
 
-Method   | Endpoint                                                              | Description
----------|-----------------------------------------------------------------------|-----------------------------------------------------------
-`GET`    | [/api/subscribers](#get-apisubscribers)                               | Gets all subscribers.
-`GET`    | [/api/subscribers/:`id`](#get-apisubscribersid)                       | Gets a single subscriber.
-`GET`    | /api/subscribers/lists/:`id`                                          | Gets subscribers in a list.
-`GET`    | [/api/subscribers](#get-apisubscriberslist_id)                        | Gets subscribers in one or more lists.
-`GET`    | [/api/subscribers](#get-apisubscribers_1)                             | Gets subscribers filtered by an arbitrary SQL expression.
-`POST`   | [/api/subscribers](#post-apisubscribers)                              | Creates a new subscriber.
-`PUT`    | [/api/subscribers/lists](#put-apisubscriberslists)                    | Modify subscribers' list memberships.
-`PUT`    | [/api/subscribers/:`id`](#put-apisubscribersid)                       | Updates a subscriber by ID.
-`PUT`    | [/api/subscribers/:`id`/blocklist](#put-apisubscribersidblocklist)    | Blocklists a single subscriber.
-`PUT`    | /api/subscribers/blocklist                                            | Blocklists one or more subscribers.
-`PUT`    | [/api/subscribers/query/blocklist](#put-apisubscribersqueryblocklist) | Blocklists subscribers with an arbitrary SQL expression.
-`DELETE` | [/api/subscribers/:`id`](#delete-apisubscribersid)                    | Deletes a single subscriber.
-`DELETE` | [/api/subscribers](#delete-apisubscribers)                            | Deletes one or more subscribers .
-`POST`   | [/api/subscribers/query/delete](#post-apisubscribersquerydelete)      | Deletes subscribers with an arbitrary SQL expression.
+| Method | Endpoint                                                                                | Description                                    |
+| ------ | --------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| GET    | [/api/subscribers](#get-apisubscribers)                                                 | Query and retrieve subscribers.                |
+| GET    | [/api/subscribers/{subscriber_id}](#get-apisubscriberssubscriber_id)                    | Retrieve a specific subscriber.                |
+| GET    | [/api/subscribers/{subscriber_id}/export](#get-apisubscriberssubscriber_idexport)       | Export a specific subscriber.                  |
+| GET    | [/api/subscribers/{subscriber_id}/bounces](#get-apisubscriberssubscriber_idbounces)     | Retrieve a  subscriber bounce records.         |
+| POST   | [/api/subscribers](#post-apisubscribers)                                                | Create a new subscriber.                       |
+| POST   | [/api/subscribers/{subscriber_id}/optin](#post-apisubscriberssubscriber_idoptin)        | Sends optin confirmation email to subscribers. |
+| POST   | [/api/public/subscription](#post-apipublicsubscription)                                 | Create a public subscription.                  |
+| PUT    | [/api/subscribers/lists](#put-apisubscriberslists)                                      | Modify subscriber list memberships.            |
+| PUT    | [/api/subscribers/{subscriber_id}](#put-apisubscriberssubscriber_id)                    | Update a specific subscriber.                  |
+| PUT    | [/api/subscribers/{subscriber_id}/blocklist](#put-apisubscriberssubscriber_idblocklist) | Blocklist a specific subscriber.               |
+| PUT    | [/api/subscribers/blocklist](#put-apisubscribersblocklist)                              | Blocklist one or many subscribers.             |
+| PUT    | [/api/subscribers/query/blocklist](#put-apisubscribersqueryblocklist)                   | Blocklist subscribers based on SQL expression. |
+| DELETE | [/api/subscribers/{subscriber_id}](#delete-apisubscriberssubscriber_id)                 | Delete a specific subscriber.                  |
+| DELETE | [/api/subscribers/{subscriber_id}/bounces](#delete-apisubscriberssubscriber_idbounces)  | Delete a specific subscriber's bounce records. |
+| DELETE | [/api/subscribers](#delete-apisubscribers)                                              | Delete one or more subscribers.                |
+| POST   | [/api/subscribers/query/delete](#post-apisubscribersquerydelete)                        | Delete subscribers based on SQL expression.    |
 
+______________________________________________________________________
 
-#### **`GET`** /api/subscribers
-Gets all subscribers. 
+#### GET /api/subscribers
+
+Retrieve all subscribers.
+
+##### Query parameters
+
+| Name                | Type   | Required | Description                                                           |
+|:--------------------|:-------|:---------|:----------------------------------------------------------------------|
+| query               | string |          | Subscriber search by SQL expression.                                  |
+| list_id             | int[]  |          | ID of lists to filter by. Repeat in the query for multiple values.    |
+| subscription_status | string |          | Subscription status to filter by if there are one or more `list_id`s. |
+| order_by            | string |          | Result sorting field. Options: name, status, created_at, updated_at.  |
+| order               | string |          | Sorting order: ASC for ascending, DESC for descending.                |
+| page                | number |          | Page number for paginated results.                                    |
+| per_page            | number |          | Results per page. Set as 'all' for all results.                       |
 
 ##### Example Request
+
 ```shell
-curl 'http://localhost:9000/api/subscribers?page=1&per_page=100' 
+curl -u 'api_username:access_token' 'http://localhost:9000/api/subscribers?page=1&per_page=100' 
 ```
 
-To skip pagination and retrieve all records, pass `per_page=all`.
+```shell
+curl -u 'api_username:access_token' 'http://localhost:9000/api/subscribers?list_id=1&list_id=2&page=1&per_page=100'
+```
+
+```shell
+curl -u 'api_username:access_token' -X GET 'http://localhost:9000/api/subscribers' \
+    --url-query 'page=1' \
+    --url-query 'per_page=100' \
+    --url-query "query=subscribers.name LIKE 'Test%' AND subscribers.attribs->>'city' = 'Bengaluru'"
+```
 
 ##### Example Response
+
 ```json
 {
     "data": {
@@ -105,22 +132,26 @@ To skip pagination and retrieve all records, pass `per_page=all`.
 }
 ```
 
+______________________________________________________________________
 
-#### **`GET`** /api/subscribers/:`id`
- Gets a single subscriber. 
+#### GET /api/subscribers/{subscriber_id}
+
+Retrieve a specific subscriber.
 
 ##### Parameters
 
-Name     | Parameter type |Data type       | Required/Optional |  Description
----------|----------------|----------------|-------------------|-----------------------
-`id`     | Path parameter | Number         | Required          | The id value of the subscriber you want to get.
+| Name          | Type      | Required | Description      |
+|:--------------|:----------|:---------|:-----------------|
+| subscriber_id | Number    | Yes      | Subscriber's ID. |
 
 ##### Example Request
+
 ```shell
-curl 'http://localhost:9000/api/subscribers/1' 
+curl -u 'api_username:access_token' 'http://localhost:9000/api/subscribers/1' 
 ```
 
 ##### Example Response
+
 ```json
 {
     "data": {
@@ -153,147 +184,136 @@ curl 'http://localhost:9000/api/subscribers/1'
     }
 }
 ```
+______________________________________________________________________
 
+#### GET /api/subscribers/{subscriber_id}/export
 
-
-#### **`GET`** /api/subscribers
-Gets subscribers in one or more lists. 
+Export a specific subscriber data that gives profile, list subscriptions, campaign views and link clicks information. Names of private lists are replaced with "Private list". 
 
 ##### Parameters
 
-Name      | Parameter type  | Data type   | Required/Optional   | Description
-----------|-----------------|-------------|---------------------|---------------
-`List_id` | Request body    | Number      | Required            |  ID of the list to fetch subscribers from.
+| Name          | Type      | Required | Description      |
+|:--------------|:----------|:---------|:-----------------|
+| subscriber_id | Number    | Yes      | Subscriber's ID. |
 
 ##### Example Request
-```shell
-curl 'http://localhost:9000/api/subscribers?list_id=1&list_id=2&page=1&per_page=100'
-```
 
-To skip pagination and retrieve all records, pass `per_page=all`.
+```shell
+curl -u 'api_username:access_token' 'http://localhost:9000/api/subscribers/1/export' 
+```
 
 ##### Example Response
 
 ```json
 {
-  "data": {
-    "results": [
-      {
-        "id": 1,
-        "created_at": "2019-06-26T16:51:54.37065+05:30",
-        "updated_at": "2019-07-03T11:53:53.839692+05:30",
-        "uuid": "5e91dda1-1c16-467d-9bf9-2a21bf22ae21",
-        "email": "test@test.com",
-        "name": "Test Subscriber",
-        "attribs": {
-          "city": "Bengaluru",
-          "projects": 3,
-          "stack": {
-            "languages": ["go", "python"]
-          }
-        },
-        "status": "enabled",
-        "lists": [
-          {
-            "subscription_status": "unconfirmed",
-            "id": 1,
-            "uuid": "41badaf2-7905-4116-8eac-e8817c6613e4",
-            "name": "Default list",
-            "type": "public",
-            "tags": ["test"],
-            "created_at": "2019-06-26T16:51:54.367719+05:30",
-            "updated_at": "2019-06-26T16:51:54.367719+05:30"
-          }
-        ]
-      }
-    ],
-    "query": "",
-    "total": 1,
-    "per_page": 20,
-    "page": 1
-  }
+  "profile": [
+    {
+      "id": 1,
+      "uuid": "c2cc0b31-b485-4d72-8ce8-b47081beadec",
+      "email": "john@example.com",
+      "name": "John Doe",
+      "attribs": {
+        "city": "Bengaluru",
+        "good": true,
+        "type": "known"
+      },
+      "status": "enabled",
+      "created_at": "2024-07-29T11:01:31.478677+05:30",
+      "updated_at": "2024-07-29T11:01:31.478677+05:30"
+    }
+  ],
+  "subscriptions": [
+    {
+      "subscription_status": "unconfirmed",
+      "name": "Private list",
+      "type": "private",
+      "created_at": "2024-07-29T11:01:31.478677+05:30"
+    }
+  ],
+  "campaign_views": [],
+  "link_clicks": []
 }
 ```
+______________________________________________________________________
 
-#### **`GET`** /api/subscribers
-Gets subscribers with an SQL expression.
+#### GET /api/subscribers/{subscriber_id}/bounces
+
+Get a specific subscriber bounce records.
+##### Parameters
+
+| Name          | Type      | Required | Description      |
+|:--------------|:----------|:---------|:-----------------|
+| subscriber_id | Number    | Yes      | Subscriber's ID. |
 
 ##### Example Request
+
 ```shell
-curl -X GET 'http://localhost:9000/api/subscribers' \
-    --url-query 'page=1' \
-    --url-query 'per_page=100' \
-    --url-query "query=subscribers.name LIKE 'Test%' AND subscribers.attribs->>'city' = 'Bengaluru'"
+curl -u 'api_username:access_token' 'http://localhost:9000/api/subscribers/1/bounces' 
 ```
 
-To skip pagination and retrieve all records, pass `per_page=all`.
+##### Example Response
 
-
->Refer to the [querying and segmentation](/docs/querying-and-segmentation#querying-and-segmenting-subscribers) section for more information on how to query subscribers with SQL expressions.
-
-##### Example Response 
 ```json
 {
-  "data": {
-    "results": [
-      {
-        "id": 1,
-        "created_at": "2019-06-26T16:51:54.37065+05:30",
-        "updated_at": "2019-07-03T11:53:53.839692+05:30",
-        "uuid": "5e91dda1-1c16-467d-9bf9-2a21bf22ae21",
-        "email": "test@test.com",
-        "name": "Test Subscriber",
-        "attribs": {
-          "city": "Bengaluru",
-          "projects": 3,
-          "stack": {
-            "frameworks": ["echo", "go"],
-            "languages": ["go", "python"]
-          }
-        },
-        "status": "enabled",
-        "lists": [
-          {
-            "subscription_status": "unconfirmed",
-            "id": 1,
-            "uuid": "41badaf2-7905-4116-8eac-e8817c6613e4",
-            "name": "Default list",
-            "type": "public",
-            "tags": ["test"],
-            "created_at": "2019-06-26T16:51:54.367719+05:30",
-            "updated_at": "2019-06-26T16:51:54.367719+05:30"
-          }
-        ]
+  "data": [
+    {
+      "id": 841706,
+      "type": "hard",
+      "source": "demo",
+      "meta": {
+        "some": "parameter"
+      },
+      "created_at": "2024-08-22T09:05:12.862877Z",
+      "email": "thomas.hobbes@example.com",
+      "subscriber_uuid": "137c0d83-8de6-44e2-a55f-d4238ab21969",
+      "subscriber_id": 99,
+      "campaign": {
+        "id": 2,
+        "name": "Welcome to listmonk"
       }
-    ],
-    "query": "subscribers.name LIKE 'Test%' AND subscribers.attribs-\u003e\u003e'city' = 'Bengaluru'",
-    "total": 1,
-    "per_page": 20,
-    "page": 1
-  }
+    },
+    {
+      "id": 841680,
+      "type": "hard",
+      "source": "demo",
+      "meta": {
+        "some": "parameter"
+      },
+      "created_at": "2024-08-19T14:07:53.141917Z",
+      "email": "thomas.hobbes@example.com",
+      "subscriber_uuid": "137c0d83-8de6-44e2-a55f-d4238ab21969",
+      "subscriber_id": 99,
+      "campaign": {
+        "id": 1,
+        "name": "Test campaign"
+      }
+    }
+  ]
 }
 ```
 
+______________________________________________________________________
 
-#### **`POST`** /api/subscribers
+#### POST /api/subscribers
 
-Creates a new subscriber.
+Create a new subscriber.
 
-##### Parameters 
+##### Parameters
 
-Name                     | Parameter type   | Data type  | Required/Optional | Description
--------------------------|------------------|------------|-------------------|----------------------------
-email                    | Request body     | String     | Required          | The email address of the new subscriber.
-name                     | Request body     | String     | Required          | The name of the new subscriber. 
-status                   | Request body     | String     | Required          | The status of the new subscriber. Can be enabled, disabled or blocklisted. 
-lists                    | Request body     | Numbers    | Optional          | Array of list IDs to subscribe to (marked as `unconfirmed` by default).
-attribs                  | Request body     | json       | Optional          | JSON list containing new subscriber's attributes.
-preconfirm_subscriptions | Request body     | Bool       | Optional          | If `true`, marks subscriptions as `confirmed` and no-optin e-mails are sent for double opt-in lists.
+| Name                     | Type      | Required | Description                                                                                          |
+|:-------------------------|:----------|:---------|:-----------------------------------------------------------------------------------------------------|
+| email                    | string    | Yes      | Subscriber's email address.                                                                          |
+| name                     | string    | Yes      | Subscriber's name.                                                                                   |
+| status                   | string    | Yes      | Subscriber's status: `enabled`, `blocklisted`.                                           |
+| lists                    | number\[\]  |          | List of list IDs to subscribe to.                                                                    |
+| attribs                  | JSON      |          | Attributes of the new subscriber.                                                                    |
+| preconfirm_subscriptions | bool      |          | If true, subscriptions are marked as confirmed and no-optin emails are sent for double opt-in lists. |
 
 ##### Example Request
+
 ```shell
-curl 'http://localhost:9000/api/subscribers' -H 'Content-Type: application/json' \
-    --data '{"email":"subsriber@domain.com","name":"The Subscriber","status":"enabled","lists":[1],"attribs":{"city":"Bengaluru","projects":3,"stack":{"languages":["go","python"]}}}'
+curl -u 'api_username:access_token' 'http://localhost:9000/api/subscribers' -H 'Content-Type: application/json' \
+    --data '{"email":"subscriber@domain.com","name":"The Subscriber","status":"enabled","lists":[1],"attribs":{"city":"Bengaluru","projects":3,"stack":{"languages":["go","python"]}}}'
 ```
 
 ##### Example Response
@@ -305,7 +325,7 @@ curl 'http://localhost:9000/api/subscribers' -H 'Content-Type: application/json'
     "created_at": "2019-07-03T12:17:29.735507+05:30",
     "updated_at": "2019-07-03T12:17:29.735507+05:30",
     "uuid": "eb420c55-4cfb-4972-92ba-c93c34ba475d",
-    "email": "subsriber@domain.com",
+    "email": "subscriber@domain.com",
     "name": "The Subscriber",
     "attribs": {
       "city": "Bengaluru",
@@ -318,152 +338,290 @@ curl 'http://localhost:9000/api/subscribers' -H 'Content-Type: application/json'
 }
 ```
 
+______________________________________________________________________
 
-#### **`PUT`** /api/subscribers/lists
+#### POST /api/subscribers/{subscribers_id}/optin
 
-Modify subscribers list memberships.
-
-##### Parameters
-
-Name              | Parameter type | Data type | Required/Optional  | Description
-------------------|----------------|-----------|--------------------|-------------------------------------------------------
-`ids`             | Request body   | Numbers   | Required           | The ids of the subscribers to be modified.
-`action`          | Request body   | String    | Required           | Whether to `add`, `remove`, or `unsubscribe` the users.
-`target_list_ids` | Request body   | Numbers   | Required           | The ids of the lists to be modified.
-`status`          | Request body   | String    | Required for `add` | `confirmed`, `unconfirmed`, or `unsubscribed` status.
+Sends optin confirmation email to subscribers.
 
 ##### Example Request
 
-To subscribe users 1, 2, and 3 to lists 4, 5, and 6:
+```shell
+curl -u 'api_username:access_token' 'http://localhost:9000/api/subscribers/11/optin' -H 'Content-Type: application/json' \
+--data {}
+```
+
+##### Example Response
+
+```json
+{
+    "data": true
+} 
+```
+______________________________________________________________________
+
+#### POST /api/public/subscription
+
+Create a public subscription, accepts both form encoded or JSON encoded body.
+
+##### Parameters
+
+| Name       | Type      | Required | Description                 |
+|:-----------|:----------|:---------|:----------------------------|
+| email      | string    | Yes      | Subscriber's email address. |
+| name       | string    |          | Subscriber's name.          |
+| list_uuids | string\[\]  | Yes      | List of list UUIDs.         |
+
+##### Example JSON Request
 
 ```shell
-curl -u "username:username" -X PUT 'http://localhost:9000/api/subscribers/lists' \
+curl 'http://localhost:9000/api/public/subscription' -H 'Content-Type: application/json' \
+    --data '{"email":"subscriber@domain.com","name":"The Subscriber","list_uuids": ["eb420c55-4cfb-4972-92ba-c93c34ba475d", "0c554cfb-eb42-4972-92ba-c93c34ba475d"]}'
+```
+
+##### Example Form Request
+
+```shell
+curl -u 'http://localhost:9000/api/public/subscription' \
+    -d 'email=subscriber@domain.com' -d 'name=The Subscriber' -d 'l=eb420c55-4cfb-4972-92ba-c93c34ba475d' -d 'l=0c554cfb-eb42-4972-92ba-c93c34ba475d'
+```
+
+Note: For form request, use `l` for multiple lists instead of `lists`.
+
+##### Example Response
+
+```json
+{
+  "data": true
+}
+```
+
+______________________________________________________________________
+
+#### PUT /api/subscribers/lists
+
+Modify subscriber list memberships.
+
+##### Parameters
+
+| Name            | Type      | Required           | Description                                                       |
+|:----------------|:----------|:-------------------|:------------------------------------------------------------------|
+| ids             | number\[\]  | Yes                | Array of user IDs to be modified.                                 |
+| action          | string    | Yes                | Action to be applied: `add`, `remove`, or `unsubscribe`.          |
+| target_list_ids | number\[\]  | Yes                | Array of list IDs to be modified.                                 |
+| status          | string    | Required for `add` | Subscriber status: `confirmed`, `unconfirmed`, or `unsubscribed`. |
+
+##### Example Request
+
+```shell
+curl -u 'api_username:access_token' -X PUT 'http://localhost:9000/api/subscribers/lists' \
+-H 'Content-Type: application/json' \
 --data-raw '{"ids": [1, 2, 3], "action": "add", "target_list_ids": [4, 5, 6], "status": "confirmed"}'
 ```
 
 ##### Example Response
 
-``` json
+```json
 {
     "data": true
 } 
 ```
 
-#### **`PUT`** /api/subscribers/:`id`
+______________________________________________________________________
 
-Updates a single subscriber.
+#### PUT /api/subscribers/{subscriber_id}
 
-##### Parameters 
+Update a specific subscriber.
 
-Parameters are the same as [POST /api/subscribers](#post-apisubscribers) used for subscriber creation. 
+> Refer to parameters from [POST /api/subscribers](#post-apisubscribers). Note: All parameters must be set, if not, the subscriber will be removed from all previously assigned lists.
 
-> Please note that this is a `PUT` request, so all the parameters have to be set. For example if you don't provide `lists`, the subscriber will be deleted from all the lists he was previously signed on.
+______________________________________________________________________
 
-#### **`PUT`** /api/subscribers/:`id`/blocklist
-Blocklists a single subscriber.
+#### PUT /api/subscribers/{subscriber_id}/blocklist
 
-##### Parameters 
+Blocklist a specific subscriber.
 
-Name  | Parameter type | Data type  | Required/Optional | Description 
-------|----------------|------------|-------------------|-------------
-`id`  | Path parameter | Number     | Required          | The id value of the subscriber you want to blocklist.
+##### Parameters
 
-##### Example Request 
+| Name          | Type      | Required | Description      |
+|:--------------|:----------|:---------|:-----------------|
+| subscriber_id | Number    | Yes      | Subscriber's ID. |
+
+##### Example Request
 
 ```shell
-curl -u "username:username" -X PUT 'http://localhost:9000/api/subscribers/9/blocklist'
+curl -u 'api_username:access_token' -X PUT 'http://localhost:9000/api/subscribers/9/blocklist'
 ```
 
-##### Example Response 
+##### Example Response
 
-``` json
+```json
 {
     "data": true
 } 
 ```
 
-#### **`PUT`** /api/subscribers/query/blocklist 
-Blocklists subscribers with an arbitrary sql expression.
+______________________________________________________________________
+
+#### PUT /api/subscribers/blocklist
+
+Blocklist multiple subscriber.
+
+##### Parameters
+
+| Name          | Type      | Required | Description      |
+|:--------------|:----------|:---------|:-----------------|
+| ids           | Number    | Yes      | Subscriber's ID. |
 
 ##### Example Request
-``` shell
-curl -u "username:username" -X PUT 'http://localhost:9000/api/subscribers/query/blocklist' \
---data-raw '"query=subscribers.name LIKE '\''John Doe'\'' AND subscribers.attribs->>'\''city'\'' = '\''Bengaluru'\''"'
+
+```shell
+curl -u 'api_username:access_token' -X PUT 'http://localhost:8080/api/subscribers/blocklist' -H 'Content-Type: application/json' --data-raw '{"ids":[2,1]}'
 ```
-
->Refer to the [querying and segmentation](/querying-and-segmentation#querying-and-segmenting-subscribers) section for more information on how to query subscribers with SQL expressions.
-
 
 ##### Example Response
 
-``` json
+```json
 {
     "data": true
-}
+} 
 ```
 
-#### **`DELETE`** /api/subscribers/:`id`
-Deletes a single subscriber. 
+______________________________________________________________________
 
-##### Parameters 
+#### PUT /api/subscribers/query/blocklist
 
-Name    | Parameter type   | Data type   | Required/Optional  |  Description
---------|------------------|-------------|--------------------|------------------
-`id`    | Path parameter   | Number      | Required           | The id of the subscriber you want to delete.
+Blocklist subscribers based on SQL expression.
 
-##### Example  Request 
+> Refer to the [querying and segmentation](../querying-and-segmentation.md#querying-and-segmenting-subscribers) section for more information on how to query subscribers with SQL expressions.
 
-``` shell
-curl -u "username:username" -X DELETE 'http://localhost:9000/api/subscribers/9'
-```
+##### Parameters
 
-##### Example Response 
-
-``` json
-{
-    "data": true
-}
-```
-
-#### **`DELETE`** /api/subscribers 
-Deletes one or more subscribers.
-
-##### Parameters 
-
-Name    |   Parameter type    | Data type      |   Required/Optional   | Description
---------|---------------------|----------------|-----------------------|--------------
-id      | Query parameters    | Number         |  Required             | The id of the subscribers you want to delete.
+| Name     | Type     | Required | Description                                 |
+|:---------|:---------|:---------|:--------------------------------------------|
+| query    | string   | Yes      | SQL expression to filter subscribers with.  |
+| list_ids | []number | No       | Optional list IDs to limit the filtering to.|
 
 ##### Example Request
 
-``` shell
-curl -u "username:username" -X DELETE 'http://localhost:9000/api/subscribers?id=10&id=11'
+```shell
+curl -u 'api_username:access_token' -X POST 'http://localhost:9000/api/subscribers/query/blocklist' \
+-H 'Content-Type: application/json' \
+--data-raw '{"query":"subscribers.name LIKE \'John Doe\' AND subscribers.attribs->>'\''city'\'' = '\''Bengaluru'\''"}'
 ```
-
-##### Example Response 
-
-``` json 
-{
-    "data": true
-}
-```
-
-
-
-#### **`POST`** /api/subscribers/query/delete 
-Deletes subscribers with an arbitrary SQL expression.
-
-##### Example Request
-``` shell
-curl -u "username:username" -X POST 'http://localhost:9000/api/subscribers/query/delete' \
---data-raw '"query=subscribers.name LIKE '\''John Doe'\'' AND subscribers.attribs->>'\''city'\'' = '\''Bengaluru'\''"'
-```
-
->Refer to the [querying and segmentation](/querying-and-segmentation#querying-and-segmenting-subscribers) section for more information on how to query subscribers with SQL expressions.
-
 
 ##### Example Response
-``` json
+
+```json
+{
+    "data": true
+}
+```
+
+______________________________________________________________________
+
+#### DELETE /api/subscribers/{subscriber_id}
+
+Delete a specific subscriber.
+
+##### Parameters
+
+| Name          | Type      | Required | Description      |
+|:--------------|:----------|:---------|:-----------------|
+| subscriber_id | Number    | Yes      | Subscriber's ID. |
+
+##### Example Request
+
+```shell
+curl -u 'api_username:access_token' -X DELETE 'http://localhost:9000/api/subscribers/9'
+```
+
+##### Example Response
+
+```json
+{
+    "data": true
+}
+```
+
+______________________________________________________________________
+
+#### DELETE /api/subscribers/{subscriber_id}/bounces
+
+Delete a subscriber's bounce records
+
+##### Parameters
+
+| Name | Type          | Required | Description                |
+|:-----|:--------------|:---------|:---------------------------|
+| id   | subscriber_id | Yes      | Subscriber's ID.           |
+
+##### Example Request
+
+```shell
+curl -u 'api_username:access_token' -X DELETE 'http://localhost:9000/api/subscribers/9/bounces'
+```
+
+##### Example Response
+
+```json
+{
+    "data": true
+}
+```
+
+______________________________________________________________________
+
+#### DELETE /api/subscribers
+
+Delete one or more subscribers.
+
+##### Parameters
+
+| Name | Type      | Required | Description                |
+|:-----|:----------|:---------|:---------------------------|
+| id   | number\[\]  | Yes      | Array of subscriber's IDs. |
+
+##### Example Request
+
+```shell
+curl -u 'api_username:access_token' -X DELETE 'http://localhost:9000/api/subscribers?id=10&id=11'
+```
+
+##### Example Response
+
+```json
+{
+    "data": true
+}
+```
+
+______________________________________________________________________
+
+#### POST /api/subscribers/query/delete
+
+Delete subscribers based on SQL expression.
+
+##### Parameters
+
+| Name     | Type     | Required | Description                                                        |
+|:---------|:---------|:---------|:-------------------------------------------------------------------|
+| query    | string   | No       | SQL expression to filter subscribers with.                         |
+| list_ids | []number | No       | Optional list IDs to limit the filtering to.                       |
+| all      | bool     | No       | When set to `true`, ignores any query and deletes all subscribers. |
+
+
+##### Example Request
+
+```shell
+curl -u 'api_username:access_token' -X POST 'http://localhost:9000/api/subscribers/query/delete' \
+-H 'Content-Type: application/json' \
+--data-raw '{"query":"subscribers.name LIKE \'John Doe\' AND subscribers.attribs->>'\''city'\'' = '\''Bengaluru'\''"}'
+```
+
+##### Example Response
+
+```json
 {
     "data": true
 }

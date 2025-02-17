@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/knadh/listmonk/internal/subimporter"
@@ -66,7 +66,7 @@ func handleImportSubscribers(c echo.Context) error {
 	}
 	defer src.Close()
 
-	out, err := ioutil.TempFile("", "listmonk")
+	out, err := os.CreateTemp("", "listmonk")
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError,
 			app.i18n.Ts("import.errorCopyingFile", "error", err.Error()))

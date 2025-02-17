@@ -1,22 +1,26 @@
 # API / Import
 
-Method   | Endpoint                                                     | Description
----------|--------------------------------------------------------------|----------------------------------------------------------
-`GET`    | [api/import/subscribers](#get-apiimportsubscribers)          | Gets a import statistics.
-`GET`    | [api/import/subscribers/logs](#get-apiimportsubscriberslogs) | Get a import statistics .
-`POST`   | [api/import/subscribers](#post-apiimportsubscribers)         | Upload a ZIP file or CSV file to bulk import subscribers.
-`DELETE` | [api/import/subscribers](#delete-apiimportsubscribers)       | Stops and deletes a import.
+Method   | Endpoint                                        | Description
+---------|-------------------------------------------------|------------------------------------------------
+GET      | [/api/import/subscribers](#get-apiimportsubscribers) | Retrieve import statistics.
+GET      | [/api/import/subscribers/logs](#get-apiimportsubscriberslogs) | Retrieve import logs.
+POST     | [/api/import/subscribers](#post-apiimportsubscribers) | Upload a file for bulk subscriber import.
+DELETE   | [/api/import/subscribers](#delete-apiimportsubscribers) | Stop and remove an import.
 
+______________________________________________________________________
 
-#### **`GET`** api/import/subscribers
-Gets import status.
+#### GET /api/import/subscribers
 
-##### Example Request 
-```shell 
-curl -u "username:username" -X GET 'http://localhost:9000/api/import/subscribers'
+Retrieve the status of an ongoing import.
+
+##### Example Request
+
+```shell
+curl -u "api_user:token" -X GET 'http://localhost:9000/api/import/subscribers'
 ```
 
-##### Example Response 
+##### Example Response
+
 ```json
 {
     "data": {
@@ -28,35 +32,57 @@ curl -u "username:username" -X GET 'http://localhost:9000/api/import/subscribers
 }
 ```
 
-#### **`GET`** api/import/subscribers/logs
-Gets import logs.
+______________________________________________________________________
 
-##### Example Request 
+#### GET /api/import/subscribers/logs
+
+Retrieve logs from an ongoing import.
+
+##### Example Request
+
 ```shell
-curl -u "username:username" -X GET 'http://localhost:9000/api/import/subscribers/logs'
+curl -u "api_user:token" -X GET 'http://localhost:9000/api/import/subscribers/logs'
 ```
 
 ##### Example Response
+
 ```json
 {
     "data": "2020/04/08 21:55:20 processing 'import.csv'\n2020/04/08 21:55:21 imported finished\n"
 }
 ```
 
+______________________________________________________________________
 
+#### POST /api/import/subscribers
 
-#### **`POST`** api/import/subscribers
-Post a CSV (optionally zipped) file to do a bulk import. The request should be a multipart form POST.
-
+Send a CSV (optionally ZIP compressed) file to import subscribers. Use a multipart form POST.
 
 ##### Parameters
 
-Name     | Parameter type | Data type | Required/Optional | Description
----------|----------------|-----------|-------------------|------------------------------------
-`params` | Request body   | String    | Required          | Stringified JSON with import params
-`file`   | Request body   | File      | Required          | File to upload
+| Name   | Type        | Required | Description                              |
+|:-------|:------------|:---------|:-----------------------------------------|
+| params | JSON string | Yes      | Stringified JSON with import parameters. |
+| file   | file        | Yes      | File for upload.                         |
 
-***params*** (JSON string)
+
+#### `params` (JSON string)
+| Name      | Type     | Required | Description                                                                                                                        |
+|:----------|:---------|:---------|:-----------------------------------------------------------------------------------------------------------------------------------|
+| mode      | string   | Yes      | `subscribe` or `blocklist`                                                                                                         |
+| delim     | string   | Yes      | Single character indicating delimiter used in the CSV file, eg: `,`                                                                |
+| lists     | []number | Yes      | Single character indicating delimiter used in the CSV file, eg: `,`                                                                |
+| overwrite | bool     | Yes      | Whether to overwrite the subscriber parameters including subscriptions or ignore records that are already present in the database. |
+
+##### Example Request
+
+```shell
+curl -u "api_user:token" -X POST 'http://localhost:9000/api/import/subscribers' \
+  -F 'params={"mode":"subscribe", "subscription_status":"confirmed", "delim":",", "lists":[1, 2], "overwrite": true}' \
+  -F "file=@/path/to/subs.csv"
+```
+
+##### Example Response
 
 ```json
     {
@@ -67,16 +93,20 @@ Name     | Parameter type | Data type | Required/Optional | Description
     }
 ```
 
+______________________________________________________________________
 
-#### **`DELETE`** api/import/subscribers
-Stops and deletes an import.
+#### DELETE /api/import/subscribers
+
+Stop and delete an ongoing import.
 
 ##### Example Request
+
 ```shell
-curl -u "username:username" -X DELETE 'http://localhost:9000/api/import/subscribers' 
+curl -u "api_user:token" -X DELETE 'http://localhost:9000/api/import/subscribers' 
 ```
 
 ##### Example Response
+
 ```json
 {
     "data": {

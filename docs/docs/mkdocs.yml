@@ -14,6 +14,10 @@ theme:
     language: 'en'
   feature:
     tabs: true
+  features:
+    - navigation.indexes
+    - navigation.sections
+    - content.code.copy
 
   palette:
     primary: "white"
@@ -32,28 +36,36 @@ markdown_extensions:
 extra_css:
   - "static/style.css"
 
-copyright: "Copyright &copy; 2019-2023, Kailash Nadh."
+copyright: "CC BY-SA 4.0"
 
 nav:
   - "Introduction": index.md
-  - "Installation": installation.md
-  - "Upgrade": upgrade.md
-  - "Configuration": configuration.md
-  - "Developer setup": developer-setup.md
-  - "Concepts": concepts.md
-  - "Querying and segmenting subscribers": querying-and-segmentation.md
-  - "Templating": templating.md
-  - "Bounce processing": bounces.md
-  - "Messengers": "messengers.md"
-  - "Archives": "archives.md"
-  - "Internationalization": "i18n.md"
-  - "Integrating with external systems": external-integration.md
-  - "API": apis/apis.md
-  - "API / Subscribers": apis/subscribers.md
-  - "API / Lists": apis/lists.md
-  - "API / Import": apis/import.md
-  - "API / Campaigns": apis/campaigns.md
-  - "API / Media": apis/media.md
-  - "API / Templates": apis/templates.md
-  - "API / Transactional": apis/transactional.md
-  
+  - "Getting Started":
+    - "Installation": installation.md
+    - "Configuration": configuration.md
+    - "Upgrade": upgrade.md
+  - "Using listmonk":
+    - "Concepts": concepts.md
+    - "Templating": templating.md
+    - "Querying and segmenting subscribers": querying-and-segmentation.md
+    - "Bounce processing": bounces.md
+    - "Messengers": "messengers.md"
+    - "Archives": "archives.md"
+    - "Internationalization": "i18n.md"
+    - "Integrating with external systems": external-integration.md
+    - "User roles and permissions": roles-and-permissions.md
+  - "API":
+    - "Introduction": apis/apis.md
+    - "SDKs and libs": apis/sdks.md
+    - "Subscribers": apis/subscribers.md
+    - "Lists": apis/lists.md
+    - "Import": apis/import.md
+    - "Campaigns": apis/campaigns.md
+    - "Media": apis/media.md
+    - "Templates": apis/templates.md
+    - "Transactional": apis/transactional.md
+    - "Bounces": apis/bounces.md
+  - "Maintenance":
+    - "Performance": maintenance/performance.md
+  - "Contributions":
+    - "Developer setup": developer-setup.md

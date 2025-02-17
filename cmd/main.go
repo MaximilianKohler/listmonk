@@ -15,6 +15,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/v2"
+	"github.com/knadh/listmonk/internal/auth"
 	"github.com/knadh/listmonk/internal/bounce"
 	"github.com/knadh/listmonk/internal/buflog"
 	"github.com/knadh/listmonk/internal/captcha"
@@ -36,24 +37,26 @@ const (
 // App contains the "global" components that are
 // passed around, especially through HTTP handlers.
 type App struct {
-	core       *core.Core
-	fs         stuffbin.FileSystem
-	db         *sqlx.DB
-	queries    *models.Queries
-	constants  *constants
-	manager    *manager.Manager
-	importer   *subimporter.Importer
-	messengers map[string]manager.Messenger
-	media      media.Store
-	i18n       *i18n.I18n
-	bounce     *bounce.Manager
-	paginator  *paginator.Paginator
-	captcha    *captcha.Captcha
-	events     *events.Events
-	notifTpls  *notifTpls
-	about      about
-	log        *log.Logger
-	bufLog     *buflog.BufLog
+	core           *core.Core
+	fs             stuffbin.FileSystem
+	db             *sqlx.DB
+	queries        *models.Queries
+	constants      *constants
+	manager        *manager.Manager
+	importer       *subimporter.Importer
+	messengers     []manager.Messenger
+	emailMessenger manager.Messenger
+	auth           *auth.Auth
+	media          media.Store
+	i18n           *i18n.I18n
+	bounce         *bounce.Manager
+	paginator      *paginator.Paginator
+	captcha        *captcha.Captcha
+	events         *events.Events
+	notifTpls      *notifTpls
+	about          about
+	log            *log.Logger
+	bufLog         *buflog.BufLog
 
 	// Channel for passing reload signals.
 	chReload chan os.Signal
@@ -61,6 +64,9 @@ type App struct {
 	// Global variable that stores the state indicating that a restart is required
 	// after a settings update.
 	needsRestart bool
+
+	// First time installation with no user records in the DB. Needs user setup.
+	needsUserSetup bool
 
 	// Global state that stores data on an available remote update.
 	update *AppUpdate
@@ -72,7 +78,7 @@ var (
 	evStream = events.New()
 	bufLog   = buflog.New(5000)
 	lo       = log.New(io.MultiWriter(os.Stdout, bufLog, evStream.ErrWriter()), "",
-		log.Ldate|log.Ltime|log.Lshortfile)
+		log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
 
 	ko      = koanf.New(".")
 	fs      stuffbin.FileSystem
@@ -87,7 +93,7 @@ var (
 	// are not embedded (in make dist), these paths are looked up. The default values before, when not
 	// overridden by build flags, are relative to the CWD at runtime.
 	appDir      string = "."
-	frontendDir string = "frontend"
+	frontendDir string = "frontend/dist"
 )
 
 func init() {
@@ -170,7 +176,7 @@ func main() {
 		db:         db,
 		constants:  initConstants(),
 		media:      initMediaStore(),
-		messengers: make(map[string]manager.Messenger),
+		messengers: []manager.Messenger{},
 		log:        lo,
 		bufLog:     bufLog,
 		captcha:    initCaptcha(),
@@ -191,6 +197,7 @@ func main() {
 	cOpt := &core.Opt{
 		Constants: core.Constants{
 			SendOptinConfirmation: app.constants.SendOptinConfirmation,
+			CacheSlowQueries:      ko.Bool("app.cache_slow_queries"),
 		},
 		Queries: queries,
 		DB:      db,
@@ -208,7 +215,14 @@ func main() {
 
 	app.queries = queries
 	app.manager = initCampaignManager(app.queries, app.constants, app)
-	app.importer = initImporter(app.queries, db, app)
+	app.importer = initImporter(app.queries, db, app.core, app)
+
+	hasUsers, auth := initAuth(db.DB, ko, app.core)
+	app.auth = auth
+	// If there are are no users in the DB who can login, the app has to prompt
+	// for new user setup.
+	app.needsUserSetup = !hasUsers
+
 	app.notifTpls = initNotifTemplates("/email-templates/*.html", fs, app.i18n, app.constants)
 	initTxTemplates(app.manager, app)
 
@@ -217,13 +231,16 @@ func main() {
 		go app.bounce.Run()
 	}
 
-	// Initialize the default SMTP (`email`) messenger.
-	app.messengers[emailMsgr] = initSMTPMessenger(app.manager)
+	// Initialize the SMTP messengers.
+	app.messengers = initSMTPMessengers()
+	for _, m := range app.messengers {
+		if m.Name() == emailMsgr {
+			app.emailMessenger = m
+		}
+	}
 
 	// Initialize any additional postback messengers.
-	for _, m := range initPostbackMessengers(app.manager) {
-		app.messengers[m.Name()] = m
-	}
+	app.messengers = append(app.messengers, initPostbackMessengers()...)
 
 	// Attach all messengers to the campaign manager.
 	for _, m := range app.messengers {
@@ -232,6 +249,11 @@ func main() {
 
 	// Load system information.
 	app.about = initAbout(queries, db)
+
+	// Start cronjobs.
+	if cOpt.Constants.CacheSlowQueries {
+		initCron(app.core)
+	}
 
 	// Start the campaign workers. The campaign batches (fetch from DB, push out
 	// messages) get processed at the specified interval.

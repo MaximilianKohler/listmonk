@@ -16,15 +16,13 @@ import (
 	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
+	"gopkg.in/volatiletech/null.v6"
 )
 
 // campaignReq is a wrapper over the Campaign model for receiving
 // campaign creation and update data from APIs.
 type campaignReq struct {
 	models.Campaign
-
-	// Indicates if the "send_at" date should be written or set to null.
-	SendLater bool `json:"send_later"`
 
 	// This overrides Campaign.Lists to receive and
 	// write a list of int IDs during creation and updation.
@@ -47,7 +45,8 @@ type campaignContentReq struct {
 }
 
 var (
-	regexFromAddress = regexp.MustCompile(`(.+?)\s<(.+?)@(.+?)>`)
+	regexFromAddress = regexp.MustCompile(`((.+?)\s)?<(.+?)@(.+?)>`)
+	regexSlug        = regexp.MustCompile(`[^\p{L}\p{M}\p{N}]`)
 )
 
 // handleGetCampaigns handles retrieval of campaigns.
@@ -57,13 +56,14 @@ func handleGetCampaigns(c echo.Context) error {
 		pg  = app.paginator.NewFromURL(c.Request().URL.Query())
 
 		status    = c.QueryParams()["status"]
+		tags      = c.QueryParams()["tag"]
 		query     = strings.TrimSpace(c.FormValue("query"))
 		orderBy   = c.FormValue("order_by")
 		order     = c.FormValue("order")
 		noBody, _ = strconv.ParseBool(c.QueryParam("no_body"))
 	)
 
-	res, total, err := app.core.QueryCampaigns(query, status, orderBy, order, pg.Offset, pg.Limit)
+	res, total, err := app.core.QueryCampaigns(query, status, tags, orderBy, order, pg.Offset, pg.Limit)
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,7 @@ func handleGetCampaign(c echo.Context) error {
 		noBody, _ = strconv.ParseBool(c.QueryParam("no_body"))
 	)
 
-	out, err := app.core.GetCampaign(id, "")
+	out, err := app.core.GetCampaign(id, "", "")
 	if err != nil {
 		return err
 	}
@@ -243,12 +243,12 @@ func handleUpdateCampaign(c echo.Context) error {
 
 	}
 
-	cm, err := app.core.GetCampaign(id, "")
+	cm, err := app.core.GetCampaign(id, "", "")
 	if err != nil {
 		return err
 	}
 
-	if isCampaignalMutable(cm.Status) {
+	if !canEditCampaign(cm.Status) {
 		return echo.NewHTTPError(http.StatusBadRequest, app.i18n.T("campaigns.cantUpdate"))
 	}
 
@@ -266,7 +266,7 @@ func handleUpdateCampaign(c echo.Context) error {
 		o = c
 	}
 
-	out, err := app.core.UpdateCampaign(id, o.Campaign, o.ListIDs, o.MediaIDs, o.SendLater)
+	out, err := app.core.UpdateCampaign(id, o.Campaign, o.ListIDs, o.MediaIDs)
 	if err != nil {
 		return err
 	}
@@ -298,6 +298,10 @@ func handleUpdateCampaignStatus(c echo.Context) error {
 		return err
 	}
 
+	if o.Status == models.CampaignStatusPaused || o.Status == models.CampaignStatusCancelled {
+		app.manager.StopCampaign(id)
+	}
+
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
@@ -309,9 +313,10 @@ func handleUpdateCampaignArchive(c echo.Context) error {
 	)
 
 	req := struct {
-		Archive    bool        `json:"archive"`
-		TemplateID int         `json:"archive_template_id"`
-		Meta       models.JSON `json:"archive_meta"`
+		Archive     bool        `json:"archive"`
+		TemplateID  int         `json:"archive_template_id"`
+		Meta        models.JSON `json:"archive_meta"`
+		ArchiveSlug string      `json:"archive_slug"`
 	}{}
 
 	// Get and validate fields.
@@ -319,11 +324,19 @@ func handleUpdateCampaignArchive(c echo.Context) error {
 		return err
 	}
 
-	if err := app.core.UpdateCampaignArchive(id, req.Archive, req.TemplateID, req.Meta); err != nil {
+	if req.ArchiveSlug != "" {
+		// Format the slug to be alpha-numeric-dash.
+		s := strings.ToLower(req.ArchiveSlug)
+		s = strings.TrimSpace(regexSlug.ReplaceAllString(s, " "))
+		s = regexpSpaces.ReplaceAllString(s, "-")
+		req.ArchiveSlug = s
+	}
+
+	if err := app.core.UpdateCampaignArchive(id, req.Archive, req.TemplateID, req.Meta, req.ArchiveSlug); err != nil {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, okResp{true})
+	return c.JSON(http.StatusOK, okResp{req})
 }
 
 // handleDeleteCampaign handles campaign deletion.
@@ -448,7 +461,8 @@ func handleTestCampaign(c echo.Context) error {
 	// Send the test messages.
 	for _, s := range subs {
 		sub := s
-		if err := sendTestMessage(sub, &camp, app); err != nil {
+		c := camp
+		if err := sendTestMessage(sub, &c, app); err != nil {
 			app.log.Printf("error sending test message: %v", err)
 			return echo.NewHTTPError(http.StatusInternalServerError,
 				app.i18n.Ts("campaigns.errorSendTest", "error", err.Error()))
@@ -534,7 +548,9 @@ func validateCampaignFields(c campaignReq, app *App) (campaignReq, error) {
 	if !strHasLen(c.Name, 1, stdInputMaxLen) {
 		return c, errors.New(app.i18n.T("campaigns.fieldInvalidName"))
 	}
-	if !strHasLen(c.Subject, 1, stdInputMaxLen) {
+
+	// Larger char limit for subject as it can contain {{ go templating }} logic.
+	if !strHasLen(c.Subject, 1, 5000) {
 		return c, errors.New(app.i18n.T("campaigns.fieldInvalidSubject"))
 	}
 
@@ -566,15 +582,27 @@ func validateCampaignFields(c campaignReq, app *App) (campaignReq, error) {
 		c.ArchiveMeta = json.RawMessage("{}")
 	}
 
+	if c.ArchiveSlug.String != "" {
+		// Format the slug to be alpha-numeric-dash.
+		s := strings.ToLower(c.ArchiveSlug.String)
+		s = strings.TrimSpace(regexSlug.ReplaceAllString(s, " "))
+		s = regexpSpaces.ReplaceAllString(s, "-")
+
+		c.ArchiveSlug = null.NewString(s, true)
+	} else {
+		// If there's no slug set, set it to NULL in the DB.
+		c.ArchiveSlug.Valid = false
+	}
+
 	return c, nil
 }
 
-// isCampaignalMutable tells if a campaign's in a state where it's
-// properties can be mutated.
-func isCampaignalMutable(status string) bool {
-	return status == models.CampaignStatusRunning ||
-		status == models.CampaignStatusCancelled ||
-		status == models.CampaignStatusFinished
+// canEditCampaign returns true if a campaign is in a status where updating
+// its properties is allowed.
+func canEditCampaign(status string) bool {
+	return status == models.CampaignStatusDraft ||
+		status == models.CampaignStatusPaused ||
+		status == models.CampaignStatusScheduled
 }
 
 // makeOptinCampaignMessage makes a default opt-in campaign message body.

@@ -18,6 +18,7 @@ type Queries struct {
 	UpsertSubscriber                *sqlx.Stmt `query:"upsert-subscriber"`
 	UpsertBlocklistSubscriber       *sqlx.Stmt `query:"upsert-blocklist-subscriber"`
 	GetSubscriber                   *sqlx.Stmt `query:"get-subscriber"`
+	HasSubscriberLists              *sqlx.Stmt `query:"has-subscriber-list"`
 	GetSubscribersByEmails          *sqlx.Stmt `query:"get-subscribers-by-emails"`
 	GetSubscriberLists              *sqlx.Stmt `query:"get-subscriber-lists"`
 	GetSubscriptions                *sqlx.Stmt `query:"get-subscriptions"`
@@ -37,15 +38,16 @@ type Queries struct {
 	ExportSubscriberData            *sqlx.Stmt `query:"export-subscriber-data"`
 
 	// Non-prepared arbitrary subscriber queries.
-	QuerySubscribers                       string `query:"query-subscribers"`
-	QuerySubscribersCount                  string `query:"query-subscribers-count"`
-	QuerySubscribersForExport              string `query:"query-subscribers-for-export"`
-	QuerySubscribersTpl                    string `query:"query-subscribers-template"`
-	DeleteSubscribersByQuery               string `query:"delete-subscribers-by-query"`
-	AddSubscribersToListsByQuery           string `query:"add-subscribers-to-lists-by-query"`
-	BlocklistSubscribersByQuery            string `query:"blocklist-subscribers-by-query"`
-	DeleteSubscriptionsByQuery             string `query:"delete-subscriptions-by-query"`
-	UnsubscribeSubscribersFromListsByQuery string `query:"unsubscribe-subscribers-from-lists-by-query"`
+	QuerySubscribers                       string     `query:"query-subscribers"`
+	QuerySubscribersCount                  string     `query:"query-subscribers-count"`
+	QuerySubscribersCountAll               *sqlx.Stmt `query:"query-subscribers-count-all"`
+	QuerySubscribersForExport              string     `query:"query-subscribers-for-export"`
+	QuerySubscribersTpl                    string     `query:"query-subscribers-template"`
+	DeleteSubscribersByQuery               string     `query:"delete-subscribers-by-query"`
+	AddSubscribersToListsByQuery           string     `query:"add-subscribers-to-lists-by-query"`
+	BlocklistSubscribersByQuery            string     `query:"blocklist-subscribers-by-query"`
+	DeleteSubscriptionsByQuery             string     `query:"delete-subscriptions-by-query"`
+	UnsubscribeSubscribersFromListsByQuery string     `query:"unsubscribe-subscribers-from-lists-by-query"`
 
 	CreateList      *sqlx.Stmt `query:"create-list"`
 	QueryLists      string     `query:"query-lists"`
@@ -65,16 +67,16 @@ type Queries struct {
 
 	// These two queries are read as strings and based on settings.individual_tracking=on/off,
 	// are interpolated and copied to view and click counts. Same query, different tables.
-	GetCampaignAnalyticsCounts       string     `query:"get-campaign-analytics-counts"`
-	GetCampaignAnalyticsCountsUnique string     `query:"get-campaign-analytics-unique-counts"`
-	GetCampaignViewCounts            *sqlx.Stmt `query:"get-campaign-view-counts"`
-	GetCampaignClickCounts           *sqlx.Stmt `query:"get-campaign-click-counts"`
-	GetCampaignLinkCounts            *sqlx.Stmt `query:"get-campaign-link-counts"`
-	GetCampaignBounceCounts          *sqlx.Stmt `query:"get-campaign-bounce-counts"`
-	DeleteCampaignViews              *sqlx.Stmt `query:"delete-campaign-views"`
-	DeleteCampaignLinkClicks         *sqlx.Stmt `query:"delete-campaign-link-clicks"`
+	GetCampaignAnalyticsCounts string     `query:"get-campaign-analytics-counts"`
+	GetCampaignViewCounts      *sqlx.Stmt `query:"get-campaign-view-counts"`
+	GetCampaignClickCounts     *sqlx.Stmt `query:"get-campaign-click-counts"`
+	GetCampaignLinkCounts      *sqlx.Stmt `query:"get-campaign-link-counts"`
+	GetCampaignBounceCounts    *sqlx.Stmt `query:"get-campaign-bounce-counts"`
+	DeleteCampaignViews        *sqlx.Stmt `query:"delete-campaign-views"`
+	DeleteCampaignLinkClicks   *sqlx.Stmt `query:"delete-campaign-link-clicks"`
 
 	NextCampaigns            *sqlx.Stmt `query:"next-campaigns"`
+	GetRunningCampaign       *sqlx.Stmt `query:"get-running-campaign"`
 	NextCampaignSubscribers  *sqlx.Stmt `query:"next-campaign-subscribers"`
 	GetOneCampaignSubscriber *sqlx.Stmt `query:"get-one-campaign-subscriber"`
 	UpdateCampaign           *sqlx.Stmt `query:"update-campaign"`
@@ -107,6 +109,24 @@ type Queries struct {
 	DeleteBounces             *sqlx.Stmt `query:"delete-bounces"`
 	DeleteBouncesBySubscriber *sqlx.Stmt `query:"delete-bounces-by-subscriber"`
 	GetDBInfo                 string     `query:"get-db-info"`
+
+	CreateUser        *sqlx.Stmt `query:"create-user"`
+	UpdateUser        *sqlx.Stmt `query:"update-user"`
+	UpdateUserProfile *sqlx.Stmt `query:"update-user-profile"`
+	UpdateUserLogin   *sqlx.Stmt `query:"update-user-login"`
+	DeleteUsers       *sqlx.Stmt `query:"delete-users"`
+	GetUsers          *sqlx.Stmt `query:"get-users"`
+	GetUser           *sqlx.Stmt `query:"get-user"`
+	GetAPITokens      *sqlx.Stmt `query:"get-api-tokens"`
+	LoginUser         *sqlx.Stmt `query:"login-user"`
+
+	CreateRole            *sqlx.Stmt `query:"create-role"`
+	GetUserRoles          *sqlx.Stmt `query:"get-user-roles"`
+	GetListRoles          *sqlx.Stmt `query:"get-list-roles"`
+	UpdateRole            *sqlx.Stmt `query:"update-role"`
+	DeleteRole            *sqlx.Stmt `query:"delete-role"`
+	UpsertListPermissions *sqlx.Stmt `query:"upsert-list-permissions"`
+	DeleteListPermission  *sqlx.Stmt `query:"delete-list-permission"`
 }
 
 // CompileSubscriberQueryTpl takes an arbitrary WHERE expressions
@@ -114,7 +134,7 @@ type Queries struct {
 // out of it using the raw `query-subscribers-template` query template.
 // While doing this, a readonly transaction is created and the query is
 // dry run on it to ensure that it is indeed readonly.
-func (q *Queries) CompileSubscriberQueryTpl(exp string, db *sqlx.DB) (string, error) {
+func (q *Queries) CompileSubscriberQueryTpl(exp string, db *sqlx.DB, subStatus string) (string, error) {
 	tx, err := db.BeginTxx(context.Background(), &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return "", err
@@ -126,19 +146,18 @@ func (q *Queries) CompileSubscriberQueryTpl(exp string, db *sqlx.DB) (string, er
 		exp = " AND " + exp
 	}
 	stmt := fmt.Sprintf(q.QuerySubscribersTpl, exp)
-	if _, err := tx.Exec(stmt, true, pq.Int64Array{}); err != nil {
+	if _, err := tx.Exec(stmt, true, pq.Int64Array{}, subStatus); err != nil {
 		return "", err
 	}
-
 	return stmt, nil
 }
 
 // compileSubscriberQueryTpl takes an arbitrary WHERE expressions and a subscriber
 // query template that depends on the filter (eg: delete by query, blocklist by query etc.)
 // combines and executes them.
-func (q *Queries) ExecSubQueryTpl(exp, tpl string, listIDs []int, db *sqlx.DB, args ...interface{}) error {
+func (q *Queries) ExecSubQueryTpl(exp, tpl string, listIDs []int, db *sqlx.DB, subStatus string, args ...interface{}) error {
 	// Perform a dry run.
-	filterExp, err := q.CompileSubscriberQueryTpl(exp, db)
+	filterExp, err := q.CompileSubscriberQueryTpl(exp, db, subStatus)
 	if err != nil {
 		return err
 	}
@@ -148,10 +167,9 @@ func (q *Queries) ExecSubQueryTpl(exp, tpl string, listIDs []int, db *sqlx.DB, a
 	}
 
 	// First argument is the boolean indicating if the query is a dry run.
-	a := append([]interface{}{false, pq.Array(listIDs)}, args...)
+	a := append([]interface{}{false, pq.Array(listIDs), subStatus}, args...)
 	if _, err := db.Exec(fmt.Sprintf(tpl, filterExp), a...); err != nil {
 		return err
 	}
-
 	return nil
 }

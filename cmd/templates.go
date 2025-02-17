@@ -130,8 +130,7 @@ func handlePreviewTemplate(c echo.Context) error {
 
 		// Render the message.
 		if err := m.Render(dummySubscriber, &tpl); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest,
-				app.i18n.Ts("globals.messages.errorFetching", "name"))
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 		out = m.Body
 	}
@@ -227,7 +226,7 @@ func handleUpdateTemplate(c echo.Context) error {
 	}
 
 	// If it's a transactional template, cache it.
-	if o.Type == models.TemplateTypeTx {
+	if out.Type == models.TemplateTypeTx {
 		app.manager.CacheTpl(out.ID, &o)
 	}
 

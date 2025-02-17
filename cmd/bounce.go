@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -121,7 +121,7 @@ func handleBounceWebhook(c echo.Context) error {
 	)
 
 	// Read the request body instead of using c.Bind() to read to save the entire raw request as meta.
-	rawReq, err := ioutil.ReadAll(c.Request().Body)
+	rawReq, err := io.ReadAll(c.Request().Body)
 	if err != nil {
 		app.log.Printf("error reading ses notification body: %v", err)
 		return echo.NewHTTPError(http.StatusBadRequest, app.i18n.Ts("globals.messages.internalError"))
@@ -187,6 +187,36 @@ func handleBounceWebhook(c echo.Context) error {
 		bs, err := app.bounce.Sendgrid.ProcessBounce(sig, ts, rawReq)
 		if err != nil {
 			app.log.Printf("error processing sendgrid notification: %v", err)
+			return echo.NewHTTPError(http.StatusBadRequest, app.i18n.T("globals.messages.invalidData"))
+		}
+		bounces = append(bounces, bs...)
+
+	// Postmark.
+	case service == "postmark" && app.constants.BouncePostmarkEnabled:
+		bs, err := app.bounce.Postmark.ProcessBounce(rawReq, c)
+		if err != nil {
+			app.log.Printf("error processing postmark notification: %v", err)
+			if _, ok := err.(*echo.HTTPError); ok {
+				return err
+			}
+
+			return echo.NewHTTPError(http.StatusBadRequest, app.i18n.T("globals.messages.invalidData"))
+		}
+		bounces = append(bounces, bs...)
+
+	// ForwardEmail.
+	case service == "forwardemail" && app.constants.BounceForwardemailEnabled:
+		var (
+			sig = c.Request().Header.Get("X-Webhook-Signature")
+		)
+
+		bs, err := app.bounce.Forwardemail.ProcessBounce(sig, rawReq)
+		if err != nil {
+			app.log.Printf("error processing forwardemail notification: %v", err)
+			if _, ok := err.(*echo.HTTPError); ok {
+				return err
+			}
+
 			return echo.NewHTTPError(http.StatusBadRequest, app.i18n.T("globals.messages.invalidData"))
 		}
 		bounces = append(bounces, bs...)

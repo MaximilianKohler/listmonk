@@ -3,14 +3,12 @@ const apiUrl = Cypress.env('apiUrl');
 describe('Subscribers', () => {
   it('Opens subscribers page', () => {
     cy.resetDB();
-    cy.loginAndVisit('/subscribers');
+    cy.loginAndVisit('/admin/subscribers');
   });
-
 
   it('Counts subscribers', () => {
-    cy.get('tbody td[data-label=Status]').its('length').should('eq', 2);
+    cy.get('tbody td[data-label=E-mail]').its('length').should('eq', 2);
   });
-
 
   it('Searches subscribers', () => {
     const cases = [
@@ -21,7 +19,7 @@ describe('Subscribers', () => {
 
     cases.forEach((c) => {
       cy.get('[data-cy=search]').clear().type(c.value);
-      cy.get('tbody td[data-label=Status]').its('length').should('eq', c.count);
+      cy.get('tbody td[data-label=E-mail]').its('length').should('eq', c.count);
       if (c.contains) {
         cy.get('tbody td[data-label=E-mail]').contains(c.contains);
       }
@@ -49,7 +47,6 @@ describe('Subscribers', () => {
     });
   });
 
-
   it('Advanced searches subscribers', () => {
     cy.get('[data-cy=btn-advanced-search]').click();
 
@@ -62,14 +59,13 @@ describe('Subscribers', () => {
     cases.forEach((c) => {
       cy.get('[data-cy=query]').clear().type(c.value);
       cy.get('[data-cy=btn-query]').click();
-      cy.get('tbody td[data-label=Status]').its('length').should('eq', c.count);
+      cy.get('tbody td[data-label=E-mail]').its('length').should('eq', c.count);
     });
 
     cy.get('[data-cy=btn-query-reset]').click();
     cy.wait(1000);
-    cy.get('tbody td[data-label=Status]').its('length').should('eq', 2);
+    cy.get('tbody td[data-label=E-mail]').its('length').should('eq', 2);
   });
-
 
   it('Does bulk subscriber list add and remove', () => {
     const cases = [
@@ -81,7 +77,6 @@ describe('Subscribers', () => {
       { radio: 'check-list-remove', lists: [0], rows: { 0: ['unsubscribed'] } },
       { radio: 'check-list-add', lists: [0], rows: { 0: ['unconfirmed', 'unsubscribed'] } },
     ];
-
 
     cases.forEach((c, n) => {
       // Select one of the 2 subscribers in the table.
@@ -124,9 +119,8 @@ describe('Subscribers', () => {
 
   it('Resets subscribers page', () => {
     cy.resetDB();
-    cy.loginAndVisit('/subscribers');
+    cy.loginAndVisit('/admin/subscribers');
   });
-
 
   it('Edits subscribers', () => {
     const status = ['enabled', 'blocklisted'];
@@ -147,11 +141,14 @@ describe('Subscribers', () => {
       // Get the ID from the header and proceed to fill the form.
       let id = 0;
       cy.get('[data-cy=id]').then(($el) => {
-        id = $el.text();
+        id = parseInt($el.text());
 
         cy.get('input[name=email]').clear().type(email);
         cy.get('input[name=name]').clear().type(name);
-        cy.get('select[name=status]').select(status[n]);
+
+        if (status[n] === 'blocklisted') {
+          cy.get('select[name=status]').select(status[n]);
+        }
         cy.get('.list-selector input').click();
         cy.get('.list-selector .autocomplete a').first().click();
         cy.get('textarea[name=attribs]').clear().type(json, { parseSpecialCharSequences: false, delay: 0 });
@@ -162,12 +159,17 @@ describe('Subscribers', () => {
     });
 
     // Confirm the edits on the table.
-    cy.wait(250);
+    cy.wait(500);
+    cy.log(rows);
     cy.get('tbody tr').each(($el) => {
-      cy.wrap($el).find('td[data-id]').invoke('attr', 'data-id').then((id) => {
+      cy.wrap($el).find('td[data-id]').invoke('attr', 'data-id').then((idStr) => {
+        const id = parseInt(idStr);
         cy.wrap($el).find('td[data-label=E-mail]').contains(rows[id].email.toLowerCase());
         cy.wrap($el).find('td[data-label=Name]').contains(rows[id].name);
-        cy.wrap($el).find('td[data-label=Status]').contains(rows[id].status, { matchCase: false });
+
+        if (rows[id].status === 'blocklisted') {
+          cy.wrap($el).find('[data-cy=blocklisted]');
+        }
 
         // Both lists on the enabled sub should be 'unconfirmed' and the blocklisted one, 'unsubscribed.'
         cy.wrap($el).find(`.tags .${rows[id].status === 'enabled' ? 'unconfirmed' : 'unsubscribed'}`)
@@ -190,12 +192,10 @@ describe('Subscribers', () => {
     cy.get('table tr.is-empty');
   });
 
-
   it('Creates new subscribers', () => {
     const statuses = ['enabled', 'blocklisted'];
     const lists = [[1], [2], [1, 2]];
     const json = '{"string": "hello", "ints": [1,2,3], "null": null, "sub": {"bool": true}}';
-
 
     // Cycle through each status and each list ID combination and create subscribers.
     const n = 0;
@@ -223,7 +223,10 @@ describe('Subscribers', () => {
       const tr = cy.get('tbody tr:nth-child(1)').then(($el) => {
         cy.wrap($el).find('td[data-label=E-mail]').contains(email.toLowerCase());
         cy.wrap($el).find('td[data-label=Name]').contains(name);
-        cy.wrap($el).find('td[data-label=Status]').contains(status, { matchCase: false });
+
+        if (status === 'blocklisted') {
+          cy.wrap($el).find('[data-cy=blocklisted]');
+        }
         cy.wrap($el).find(`.tags .${status === 'enabled' ? 'unconfirmed' : 'unsubscribed'}`)
           .its('length').should('eq', list.length);
         cy.wrap($el).find('td[data-label=Lists]').then((l) => {
@@ -236,7 +239,7 @@ describe('Subscribers', () => {
   it('Sorts subscribers', () => {
     const asc = [3, 4, 5, 6, 7, 8];
     const desc = [8, 7, 6, 5, 4, 3];
-    const cases = ['cy-status', 'cy-email', 'cy-name', 'cy-created_at', 'cy-updated_at'];
+    const cases = ['cy-email', 'cy-name', 'cy-created_at', 'cy-updated_at'];
 
     cases.forEach((c) => {
       cy.sortTable(`thead th.${c}`, asc);
@@ -247,14 +250,13 @@ describe('Subscribers', () => {
   });
 });
 
-
 describe('Domain blocklist', () => {
   it('Opens settings page', () => {
     cy.resetDB();
   });
 
   it('Add domains to blocklist', () => {
-    cy.loginAndVisit('/settings');
+    cy.loginAndVisit('/admin/settings');
     cy.get('.b-tabs nav a').eq(2).click();
     cy.get('textarea[name="privacy.domain_blocklist"]').clear().type('ban.net\n\nBaN.OrG\n\nban.com\n\n');
     cy.get('[data-cy=btn-save]').click();
@@ -271,7 +273,6 @@ describe('Domain blocklist', () => {
     cy.get('button[type=submit]').click();
     cy.get('h2').contains('Error');
   });
-
 
   // Post to the admin API.
   it('Try via admin API', () => {
@@ -315,7 +316,7 @@ describe('Domain blocklist', () => {
   });
 
   it('Try via import', () => {
-    cy.loginAndVisit('/subscribers/import');
+    cy.loginAndVisit('/admin/subscribers/import');
     cy.get('.list-selector input').click();
     cy.get('.list-selector .autocomplete a').first().click();
 
@@ -335,11 +336,11 @@ describe('Domain blocklist', () => {
   });
 
   it('Clear blocklist and try', () => {
-    cy.loginAndVisit('/settings');
+    cy.loginAndVisit('/admin/settings');
     cy.get('.b-tabs nav a').eq(2).click();
     cy.get('textarea[name="privacy.domain_blocklist"]').clear();
     cy.get('[data-cy=btn-save]').click();
-    cy.wait(1000);
+    cy.wait(3000);
 
     // Add banned domain.
     cy.request({

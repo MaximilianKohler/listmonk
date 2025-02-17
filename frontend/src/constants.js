@@ -8,14 +8,18 @@ export const models = Object.freeze({
   templates: 'templates',
   media: 'media',
   bounces: 'bounces',
+  users: 'users',
+  profile: 'profile',
+  userRoles: 'userRoles',
+  listRoles: 'listRoles',
   settings: 'settings',
   logs: 'logs',
   maintenance: 'maintenance',
 });
 
 // Ad-hoc URIs that are used outside of vuex requests.
-const rootURL = process.env.VUE_APP_ROOT_URL || '/';
-const baseURL = process.env.BASE_URL.replace(/\/$/, '');
+const rootURL = import.meta.env.VUE_APP_ROOT_URL || '/';
+const baseURL = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 export const uris = Object.freeze({
   previewCampaign: '/api/campaigns/:id/preview',

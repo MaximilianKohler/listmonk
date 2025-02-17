@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"regexp"
 	"runtime"
@@ -11,7 +11,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/gofrs/uuid"
+	"github.com/gdgvda/cron"
+	"github.com/gofrs/uuid/v5"
 	"github.com/jmoiron/sqlx/types"
 	"github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/providers/rawbytes"
@@ -66,9 +67,13 @@ func handleGetSettings(c echo.Context) error {
 	for i := 0; i < len(s.Messengers); i++ {
 		s.Messengers[i].Password = strings.Repeat(pwdMask, utf8.RuneCountInString(s.Messengers[i].Password))
 	}
+
 	s.UploadS3AwsSecretAccessKey = strings.Repeat(pwdMask, utf8.RuneCountInString(s.UploadS3AwsSecretAccessKey))
 	s.SendgridKey = strings.Repeat(pwdMask, utf8.RuneCountInString(s.SendgridKey))
+	s.BouncePostmark.Password = strings.Repeat(pwdMask, utf8.RuneCountInString(s.BouncePostmark.Password))
+	s.BounceForwardEmail.Key = strings.Repeat(pwdMask, utf8.RuneCountInString(s.BounceForwardEmail.Key))
 	s.SecurityCaptchaSecret = strings.Repeat(pwdMask, utf8.RuneCountInString(s.SecurityCaptchaSecret))
+	s.OIDC.ClientSecret = strings.Repeat(pwdMask, utf8.RuneCountInString(s.OIDC.ClientSecret))
 
 	return c.JSON(http.StatusOK, okResp{s})
 }
@@ -91,12 +96,33 @@ func handleUpdateSettings(c echo.Context) error {
 		return err
 	}
 
+	// Validate and sanitize postback Messenger names along with SMTP names
+	// (where each SMTP is also considered as a standalone messenger).
+	// Duplicates are disallowed and "email" is a reserved name.
+	names := map[string]bool{emailMsgr: true}
+
 	// There should be at least one SMTP block that's enabled.
 	has := false
 	for i, s := range set.SMTP {
 		if s.Enabled {
 			has = true
 		}
+
+		// Sanitize and normalize the SMTP server name.
+		name := reAlphaNum.ReplaceAllString(strings.ToLower(strings.TrimSpace(s.Name)), "-")
+		if name != "" {
+			if !strings.HasPrefix(name, "email-") {
+				name = "email-" + name
+			}
+
+			if _, ok := names[name]; ok {
+				return echo.NewHTTPError(http.StatusBadRequest,
+					app.i18n.Ts("settings.duplicateMessengerName", "name", name))
+			}
+
+			names[name] = true
+		}
+		set.SMTP[i].Name = name
 
 		// Assign a UUID. The frontend only sends a password when the user explicitly
 		// changes the password. In other cases, the existing password in the DB
@@ -105,6 +131,10 @@ func handleUpdateSettings(c echo.Context) error {
 		if s.UUID == "" {
 			set.SMTP[i].UUID = uuid.Must(uuid.NewV4()).String()
 		}
+
+		// Ensure the HOST is trimmed of any whitespace.
+		// This is a common mistake when copy-pasting SMTP settings.
+		set.SMTP[i].Host = strings.TrimSpace(s.Host)
 
 		// If there's no password coming in from the frontend, copy the existing
 		// password by matching the UUID.
@@ -120,6 +150,8 @@ func handleUpdateSettings(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, app.i18n.T("settings.errorNoSMTP"))
 	}
 
+	set.AppRootURL = strings.TrimRight(set.AppRootURL, "/")
+
 	// Bounce boxes.
 	for i, s := range set.BounceBoxes {
 		// Assign a UUID. The frontend only sends a password when the user explicitly
@@ -129,6 +161,10 @@ func handleUpdateSettings(c echo.Context) error {
 		if s.UUID == "" {
 			set.BounceBoxes[i].UUID = uuid.Must(uuid.NewV4()).String()
 		}
+
+		// Ensure the HOST is trimmed of any whitespace.
+		// This is a common mistake when copy-pasting SMTP settings.
+		set.BounceBoxes[i].Host = strings.TrimSpace(s.Host)
 
 		if d, _ := time.ParseDuration(s.ScanInterval); d.Minutes() < 1 {
 			return echo.NewHTTPError(http.StatusBadRequest, app.i18n.T("settings.bounces.invalidScanInterval"))
@@ -144,10 +180,6 @@ func handleUpdateSettings(c echo.Context) error {
 			}
 		}
 	}
-
-	// Validate and sanitize postback Messenger names. Duplicates are disallowed
-	// and "email" is a reserved name.
-	names := map[string]bool{emailMsgr: true}
 
 	for i, m := range set.Messengers {
 		// UUID to keep track of password changes similar to the SMTP logic above.
@@ -183,8 +215,17 @@ func handleUpdateSettings(c echo.Context) error {
 	if set.SendgridKey == "" {
 		set.SendgridKey = cur.SendgridKey
 	}
+	if set.BouncePostmark.Password == "" {
+		set.BouncePostmark.Password = cur.BouncePostmark.Password
+	}
+	if set.BounceForwardEmail.Key == "" {
+		set.BounceForwardEmail.Key = cur.BounceForwardEmail.Key
+	}
 	if set.SecurityCaptchaSecret == "" {
 		set.SecurityCaptchaSecret = cur.SecurityCaptchaSecret
+	}
+	if set.OIDC.ClientSecret == "" {
+		set.OIDC.ClientSecret = cur.OIDC.ClientSecret
 	}
 
 	for n, v := range set.UploadExtensions {
@@ -200,6 +241,13 @@ func handleUpdateSettings(c echo.Context) error {
 		}
 	}
 	set.DomainBlocklist = doms
+
+	// Validate slow query caching cron.
+	if set.CacheSlowQueries {
+		if _, err := cron.ParseStandard(set.CacheSlowQueriesInterval); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, app.i18n.Ts("globals.messages.invalidData")+": slow query cron: "+err.Error())
+		}
+	}
 
 	// Update the settings in the DB.
 	if err := app.core.UpdateSettings(set); err != nil {
@@ -238,7 +286,7 @@ func handleTestSMTPSettings(c echo.Context) error {
 	app := c.Get("app").(*App)
 
 	// Copy the raw JSON post body.
-	reqBody, err := ioutil.ReadAll(c.Request().Body)
+	reqBody, err := io.ReadAll(c.Request().Body)
 	if err != nil {
 		app.log.Printf("error reading SMTP test: %v", err)
 		return echo.NewHTTPError(http.StatusBadRequest, app.i18n.Ts("globals.messages.internalError"))
@@ -266,7 +314,7 @@ func handleTestSMTPSettings(c echo.Context) error {
 	req.MaxConns = 1
 	req.IdleTimeout = time.Second * 2
 	req.PoolWaitTimeout = time.Second * 2
-	msgr, err := email.New(req)
+	msgr, err := email.New("", req)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest,
 			app.i18n.Ts("globals.messages.errorCreating", "name", "SMTP", "error", err.Error()))
@@ -285,7 +333,6 @@ func handleTestSMTPSettings(c echo.Context) error {
 	m.Subject = app.i18n.T("settings.smtp.testConnection")
 	m.Body = b.Bytes()
 	if err := msgr.Push(m); err != nil {
-		app.log.Printf("error sending SMTP test (%s): %v", m.Subject, err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
