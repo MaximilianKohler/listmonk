@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../templating/">
+        <link rel="prev" href="../external-integration/">
       
       
-        <link rel="next" href="../bounces/">
+        <link rel="next" href="../apis/apis/">
       
       
       <link rel="icon" href="../images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>Querying and segmenting subscribers - listmonk / Documentation</title>
+        <title>User roles and permissions - listmonk / Documentation</title>
       
     
     
@@ -72,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#querying-and-segmenting-subscribers" class="md-skip">
+        <a href="#user-roles" class="md-skip">
           Skip to content
         </a>
       
@@ -107,7 +107,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Querying and segmenting subscribers
+              User roles and permissions
             
           </span>
         </div>
@@ -446,31 +446,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    Querying and segmenting subscribers
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../querying-and-segmentation/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -480,113 +459,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#database-fields" class="md-nav__link">
-    <span class="md-ellipsis">
-      Database fields
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sample-attributes" class="md-nav__link">
-    <span class="md-ellipsis">
-      Sample attributes
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sample-sql-query-expressions" class="md-nav__link">
-    <span class="md-ellipsis">
-      Sample SQL query expressions
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Sample SQL query expressions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#find-a-subscriber-by-e-mail" class="md-nav__link">
-    <span class="md-ellipsis">
-      Find a subscriber by e-mail
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#find-a-subscriber-by-name" class="md-nav__link">
-    <span class="md-ellipsis">
-      Find a subscriber by name
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#multiple-conditions" class="md-nav__link">
-    <span class="md-ellipsis">
-      Multiple conditions
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#querying-subscribers-who-viewed-the-campaign-email" class="md-nav__link">
-    <span class="md-ellipsis">
-      Querying subscribers who viewed the campaign email
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#querying-attributes" class="md-nav__link">
-    <span class="md-ellipsis">
-      Querying attributes
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#querying-nested-attributes" class="md-nav__link">
-    <span class="md-ellipsis">
-      Querying nested attributes
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -706,10 +578,29 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../roles-and-permissions/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    User roles and permissions
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -719,6 +610,51 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#user-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      User roles
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#list-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      List roles
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-users" class="md-nav__link">
+    <span class="md-ellipsis">
+      API users
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1186,8 +1122,6 @@
   
   
   
-    
-  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
@@ -1196,89 +1130,29 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#database-fields" class="md-nav__link">
+  <a href="#user-roles" class="md-nav__link">
     <span class="md-ellipsis">
-      Database fields
+      User roles
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#sample-attributes" class="md-nav__link">
+  <a href="#list-roles" class="md-nav__link">
     <span class="md-ellipsis">
-      Sample attributes
+      List roles
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#sample-sql-query-expressions" class="md-nav__link">
+  <a href="#api-users" class="md-nav__link">
     <span class="md-ellipsis">
-      Sample SQL query expressions
+      API users
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Sample SQL query expressions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#find-a-subscriber-by-e-mail" class="md-nav__link">
-    <span class="md-ellipsis">
-      Find a subscriber by e-mail
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#find-a-subscriber-by-name" class="md-nav__link">
-    <span class="md-ellipsis">
-      Find a subscriber by name
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#multiple-conditions" class="md-nav__link">
-    <span class="md-ellipsis">
-      Multiple conditions
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#querying-subscribers-who-viewed-the-campaign-email" class="md-nav__link">
-    <span class="md-ellipsis">
-      Querying subscribers who viewed the campaign email
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#querying-attributes" class="md-nav__link">
-    <span class="md-ellipsis">
-      Querying attributes
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#querying-nested-attributes" class="md-nav__link">
-    <span class="md-ellipsis">
-      Querying nested attributes
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1298,104 +1172,151 @@
 
 
 
-<h1 id="querying-and-segmenting-subscribers">Querying and segmenting subscribers<a class="headerlink" href="#querying-and-segmenting-subscribers" title="Permanent link">&para;</a></h1>
-<p>listmonk allows the writing of partial Postgres SQL expressions to query, filter, and segment subscribers.</p>
-<h2 id="database-fields">Database fields<a class="headerlink" href="#database-fields" title="Permanent link">&para;</a></h2>
-<p>These are the fields in the subscriber database that can be queried.</p>
+  <h1>User roles and permissions</h1>
+
+<p>listmonk supports (&gt;= v4.0.0) creating systems users with granular permissions to various features, including list-specific permissions. Users can login with a username and password, or via an OIDC (OpenID Connect) handshake if an auth provider is connected. Various permissions can be grouped into "user roles", which can be assigned to users. List-specific permissions can be grouped into "list roles".</p>
+<h2 id="user-roles">User roles<a class="headerlink" href="#user-roles" title="Permanent link">&para;</a></h2>
+<p>A user role is a collection of user related permissions. User roles are attached to user accounts. User roles can be managed in <code>Admin -&gt; Users -&gt; User roles</code> The permissions are described below.</p>
 <table>
 <thead>
 <tr>
-<th>Field</th>
+<th>Group</th>
+<th>Permission</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>subscribers.uuid</code></td>
-<td>The randomly generated unique ID of the subscriber</td>
+<td>lists</td>
+<td>lists:get_all</td>
+<td>Get details of all lists</td>
 </tr>
 <tr>
-<td><code>subscribers.email</code></td>
-<td>E-mail ID of the subscriber</td>
+<td></td>
+<td>lists:manage_all</td>
+<td>Create, update, and delete all lists</td>
 </tr>
 <tr>
-<td><code>subscribers.name</code></td>
-<td>Name of the subscriber</td>
+<td>subscribers</td>
+<td>subscribers:get</td>
+<td>Get individual subscriber details</td>
 </tr>
 <tr>
-<td><code>subscribers.status</code></td>
-<td>Status of the subscriber (enabled, disabled, blocklisted)</td>
+<td></td>
+<td>subscribers:get_all</td>
+<td>Get all subscribers and their details</td>
 </tr>
 <tr>
-<td><code>subscribers.attribs</code></td>
-<td>Map of arbitrary attributes represented as JSON. Accessed via the <code>-&gt;</code> and <code>-&gt;&gt;</code> Postgres operator.</td>
+<td></td>
+<td>subscribers:manage</td>
+<td>Add, update, and delete subscribers</td>
 </tr>
 <tr>
-<td><code>subscribers.created_at</code></td>
-<td>Timestamp when the subscriber was first added</td>
+<td></td>
+<td>subscribers:import</td>
+<td>Import subscribers from external files</td>
 </tr>
 <tr>
-<td><code>subscribers.updated_at</code></td>
-<td>Timestamp when the subscriber was modified</td>
+<td></td>
+<td>subscribers:sql_query</td>
+<td>Run SQL queries on subscriber data. <strong>WARNING:</strong> This permission will allow the querying of all lists and subscribers directly from the database with SQL expressions, superceding individual list and subscriber permissions above.</td>
+</tr>
+<tr>
+<td></td>
+<td>tx:send</td>
+<td>Send transactional messages to subscribers</td>
+</tr>
+<tr>
+<td>campaigns</td>
+<td>campaigns:get</td>
+<td>Get campaign details</td>
+</tr>
+<tr>
+<td></td>
+<td>campaigns:get_analytics</td>
+<td>Access campaign performance metrics</td>
+</tr>
+<tr>
+<td></td>
+<td>campaigns:manage</td>
+<td>Create, update, and delete campaigns</td>
+</tr>
+<tr>
+<td>bounces</td>
+<td>bounces:get</td>
+<td>Get email bounce records</td>
+</tr>
+<tr>
+<td></td>
+<td>bounces:manage</td>
+<td>Process and handle bounced emails</td>
+</tr>
+<tr>
+<td></td>
+<td>webhooks:post_bounce</td>
+<td>Receive bounce notifications via webhook</td>
+</tr>
+<tr>
+<td>media</td>
+<td>media:get</td>
+<td>Get uploaded media files</td>
+</tr>
+<tr>
+<td></td>
+<td>media:manage</td>
+<td>Upload, update, and delete media</td>
+</tr>
+<tr>
+<td>templates</td>
+<td>templates:get</td>
+<td>Get email templates</td>
+</tr>
+<tr>
+<td></td>
+<td>templates:manage</td>
+<td>Create, update, and delete templates</td>
+</tr>
+<tr>
+<td>users</td>
+<td>users:get</td>
+<td>Get system user accounts</td>
+</tr>
+<tr>
+<td></td>
+<td>users:manage</td>
+<td>Create, update, and delete user accounts</td>
+</tr>
+<tr>
+<td></td>
+<td>roles:get</td>
+<td>Get user roles and permissions</td>
+</tr>
+<tr>
+<td></td>
+<td>roles:manage</td>
+<td>Create and modify user roles</td>
+</tr>
+<tr>
+<td>settings</td>
+<td>settings:get</td>
+<td>Get system settings</td>
+</tr>
+<tr>
+<td></td>
+<td>settings:manage</td>
+<td>Modify system configuration</td>
+</tr>
+<tr>
+<td></td>
+<td>settings:maintain</td>
+<td>Perform system maintenance tasks</td>
 </tr>
 </tbody>
 </table>
-<h2 id="sample-attributes">Sample attributes<a class="headerlink" href="#sample-attributes" title="Permanent link">&para;</a></h2>
-<p>Here's a sample JSON map of attributes assigned to an imaginary subscriber.</p>
-<div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;city&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Bengaluru&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;likes_tea&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;spoken_languages&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;English&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Malayalam&quot;</span><span class="p">],</span>
-<span class="w">  </span><span class="nt">&quot;projects&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;stack&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;frameworks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;echo&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;go&quot;</span><span class="p">],</span>
-<span class="w">    </span><span class="nt">&quot;languages&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;go&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;python&quot;</span><span class="p">],</span>
-<span class="w">    </span><span class="nt">&quot;preferred_language&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;go&quot;</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div>
-<p><img alt="listmonk screenshot" src="../images/edit-subscriber.png" /></p>
-<h2 id="sample-sql-query-expressions">Sample SQL query expressions<a class="headerlink" href="#sample-sql-query-expressions" title="Permanent link">&para;</a></h2>
-<p><img alt="listmonk" src="../images/query-subscribers.png" /></p>
-<h4 id="find-a-subscriber-by-e-mail">Find a subscriber by e-mail<a class="headerlink" href="#find-a-subscriber-by-e-mail" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><span class="c1">-- Exact match</span>
-<span class="n">subscribers</span><span class="p">.</span><span class="n">email</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;some@domain.com&#39;</span>
-
-<span class="c1">-- Partial match to find e-mails that end in @domain.com.</span>
-<span class="n">subscribers</span><span class="p">.</span><span class="n">email</span><span class="w"> </span><span class="k">LIKE</span><span class="w"> </span><span class="s1">&#39;%@domain.com&#39;</span>
-</code></pre></div>
-<h4 id="find-a-subscriber-by-name">Find a subscriber by name<a class="headerlink" href="#find-a-subscriber-by-name" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><span class="c1">-- Find all subscribers whose name start with John.</span>
-<span class="n">subscribers</span><span class="p">.</span><span class="n">email</span><span class="w"> </span><span class="k">LIKE</span><span class="w"> </span><span class="s1">&#39;John%&#39;</span>
-</code></pre></div>
-<h4 id="multiple-conditions">Multiple conditions<a class="headerlink" href="#multiple-conditions" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><span class="c1">-- Find all Johns who have been blocklisted.</span>
-<span class="n">subscribers</span><span class="p">.</span><span class="n">email</span><span class="w"> </span><span class="k">LIKE</span><span class="w"> </span><span class="s1">&#39;John%&#39;</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;blocklisted&#39;</span>
-</code></pre></div>
-<h4 id="querying-subscribers-who-viewed-the-campaign-email">Querying subscribers who viewed the campaign email<a class="headerlink" href="#querying-subscribers-who-viewed-the-campaign-email" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><span class="c1">-- Find all subscribers who viewed the campaign email.</span>
-<span class="k">EXISTS</span><span class="p">(</span><span class="k">SELECT</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">campaign_views</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">campaign_views</span><span class="p">.</span><span class="n">subscriber_id</span><span class="o">=</span><span class="n">subscribers</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">campaign_views</span><span class="p">.</span><span class="n">campaign_id</span><span class="o">=&lt;</span><span class="n">put_id_of_campaign</span><span class="o">&gt;</span><span class="p">)</span>
-</code></pre></div>
-<h4 id="querying-attributes">Querying attributes<a class="headerlink" href="#querying-attributes" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><span class="c1">-- The -&gt;&gt; operator returns the value as text. Find all subscribers</span>
-<span class="c1">-- who live in Bengaluru and have done more than 3 projects.</span>
-<span class="c1">-- Here &#39;projects&#39; is cast into an integer so that we can apply the</span>
-<span class="c1">-- numerical operator &gt;</span>
-<span class="n">subscribers</span><span class="p">.</span><span class="n">attribs</span><span class="o">-&gt;&gt;</span><span class="s1">&#39;city&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Bengaluru&#39;</span><span class="w"> </span><span class="k">AND</span>
-<span class="w">    </span><span class="p">(</span><span class="n">subscribers</span><span class="p">.</span><span class="n">attribs</span><span class="o">-&gt;&gt;</span><span class="s1">&#39;projects&#39;</span><span class="p">)::</span><span class="nb">INT</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">3</span>
-</code></pre></div>
-<h4 id="querying-nested-attributes">Querying nested attributes<a class="headerlink" href="#querying-nested-attributes" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><span class="c1">-- Find all blocklisted subscribers who like to drink tea, can code Python</span>
-<span class="c1">-- and prefer coding Go.</span>
-<span class="c1">--</span>
-<span class="c1">-- The -&gt; operator returns the value as a structure. Here, the &quot;languages&quot; field</span>
-<span class="c1">-- The ? operator checks for the existence of a value in a list.</span>
-<span class="n">subscribers</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;blocklisted&#39;</span><span class="w"> </span><span class="k">AND</span>
-<span class="w">    </span><span class="p">(</span><span class="n">subscribers</span><span class="p">.</span><span class="n">attribs</span><span class="o">-&gt;&gt;</span><span class="s1">&#39;likes_tea&#39;</span><span class="p">)::</span><span class="nb">BOOLEAN</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="w"> </span><span class="k">AND</span>
-<span class="w">    </span><span class="n">subscribers</span><span class="p">.</span><span class="n">attribs</span><span class="o">-&gt;</span><span class="s1">&#39;stack&#39;</span><span class="o">-&gt;</span><span class="s1">&#39;languages&#39;</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s1">&#39;python&#39;</span><span class="w"> </span><span class="k">AND</span>
-<span class="w">    </span><span class="n">subscribers</span><span class="p">.</span><span class="n">attribs</span><span class="o">-&gt;</span><span class="s1">&#39;stack&#39;</span><span class="o">-&gt;&gt;</span><span class="s1">&#39;preferred_language&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;go&#39;</span>
-</code></pre></div>
-<p>To learn how to write SQL expressions to do advancd querying on JSON attributes, refer to the Postgres <a href="https://www.postgresql.org/docs/11/functions-json.html">JSONB documentation</a>.</p>
+<h2 id="list-roles">List roles<a class="headerlink" href="#list-roles" title="Permanent link">&para;</a></h2>
+<p>A list role is a collection of permissions assigned per list. Each list can be assigned a view (read) or manage (update) permission. List roles are attached to user accounts. Only the lists defined in a list role is accessible by the user, be it on the admin UI or via API calls. Do note that the <code>lists:get_all</code> and <code>lists:manage_all</code> permissions in user roles override all per-list permissions.</p>
+<h2 id="api-users">API users<a class="headerlink" href="#api-users" title="Permanent link">&para;</a></h2>
+<p>A user account can be of two types, a regular user or an API user. API users are meant for intertacting with the listmonk APIs programmatically. Unlike regular user accounts that have custom passwords or OIDC for authentication, API users get an automatically generated secret token.</p>
 
 
 
